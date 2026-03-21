@@ -1335,14 +1335,14 @@ function PatientModule({ currentUsername = "patient" }) {
   const payingInvoice = invoices.find((entry) => entry.id === payingInvoiceId);
 
   return (
-    <section className="patient-erp-shell">
-      <aside className="patient-left-panel">
-        <nav className="erp-side-nav patient-erp-side-nav">
+    <section className="admin-erp-shell">
+      <aside className="admin-left-panel">
+        <nav className="erp-side-nav admin-erp-side-nav">
           {MENU_GROUPS.map((group) => (
-            <div key={group.key} className="erp-nav-group patient-erp-nav-group">
+            <div key={group.key} className="erp-nav-group admin-erp-nav-group">
               <button
                 type="button"
-                className="erp-group-btn patient-erp-group-btn"
+                className="erp-group-btn admin-erp-group-btn"
                 onClick={() => {
                   setActiveSubNavKey("");
                   setActiveMenu(group.mainMenu);
@@ -1357,7 +1357,7 @@ function PatientModule({ currentUsername = "patient" }) {
               </button>
 
               {openGroups[group.key] ? (
-                <div className="erp-group-items patient-erp-group-items">
+                <div className="erp-group-items admin-erp-group-items">
                   {group.items.map((item) => (
                     <div key={item.key}>
                       <button
@@ -1386,14 +1386,12 @@ function PatientModule({ currentUsername = "patient" }) {
         </nav>
       </aside>
 
-      <div className="patient-main-area">
-        <header className="doctor-header">
+      <div className="admin-main-area">
+        <header className="admin-title-row">
           <h2>{menuTitle}</h2>
-          <p className="dashboard-subtitle">Manage appointments, records, prescriptions, and payments.</p>
-          <p className="dashboard-userline">Signed in as: {currentUsername}</p>
         </header>
 
-        {uiNotice ? <p className="patient-notice">{uiNotice}</p> : null}
+        {uiNotice ? <p className="admin-notice">{uiNotice}</p> : null}
 
         {activeMenu !== "home" ? (
           <div className="erp-stats-grid patient-stats">

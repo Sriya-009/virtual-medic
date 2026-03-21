@@ -699,14 +699,14 @@ function DoctorModule({ currentUsername = "doctor" }) {
   }, [scheduleBlocks]);
 
   return (
-    <section className="doctor-erp-shell">
-      <aside className="doctor-left-panel">
-        <nav className="erp-side-nav doctor-erp-side-nav">
+    <section className="admin-erp-shell">
+      <aside className="admin-left-panel">
+        <nav className="erp-side-nav admin-erp-side-nav">
           {TABS.map((group) => (
-            <div key={group.key} className="erp-nav-group doctor-erp-nav-group">
+            <div key={group.key} className="erp-nav-group admin-erp-nav-group">
               <button
                 type="button"
-                className="erp-group-btn doctor-erp-group-btn"
+                className="erp-group-btn admin-erp-group-btn"
                 onClick={() => handleMainNavClick(group)}
               >
                 <span>{group.label}</span>
@@ -714,7 +714,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
               </button>
 
               {openGroups[group.key] ? (
-                <div className="erp-group-items doctor-erp-group-items">
+                <div className="erp-group-items admin-erp-group-items">
                   {group.items.map((tab) => (
                     <button
                       key={tab.key}
@@ -732,14 +732,12 @@ function DoctorModule({ currentUsername = "doctor" }) {
         </nav>
       </aside>
 
-      <div className="doctor-main-area">
-        <header className="doctor-header">
+      <div className="admin-main-area">
+        <header className="admin-title-row">
           <h2>{activeTabLabel}</h2>
-          <p className="dashboard-subtitle">Manage appointments, patient care, records, prescriptions, and communication.</p>
-          <p className="dashboard-userline">Signed in as: {currentUsername}</p>
         </header>
 
-        {uiNotice ? <p className="doctor-notice">{uiNotice}</p> : null}
+        {uiNotice ? <p className="admin-notice">{uiNotice}</p> : null}
 
         {activeTab !== "dashboard" ? (
           <div className="erp-stats-grid doctor-stats">

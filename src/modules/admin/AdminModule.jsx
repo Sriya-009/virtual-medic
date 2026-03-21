@@ -1032,8 +1032,6 @@ function AdminModule({ currentUsername = "admin" }) {
       <div className="admin-main-area">
         <header className="admin-title-row">
           <h2>{menuTitle}</h2>
-          <p className="dashboard-subtitle">Medico Administration</p>
-          <p className="dashboard-userline">Signed in as: {currentUsername}</p>
         </header>
         {uiNotice ? <p className="admin-notice">{uiNotice}</p> : null}
         {renderSection()}

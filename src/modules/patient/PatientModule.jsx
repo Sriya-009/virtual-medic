@@ -189,6 +189,19 @@ function PatientModule({ currentUsername = "patient" }) {
       allergyInfo: "No known drug allergies"
     })
   );
+  const [profileDraft, setProfileDraft] = useState(profile);
+  const [payingInvoiceId, setPayingInvoiceId] = useState("");
+  const [paymentForm, setPaymentForm] = useState({
+    method: "Card",
+    cardholderName: "",
+    cardNumber: "",
+    expiryMonth: "",
+    expiryYear: "",
+    cvv: "",
+    billingAddress: "",
+    city: "",
+    country: ""
+  });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -382,16 +395,21 @@ function PatientModule({ currentUsername = "patient" }) {
     ]);
   };
 
-  const payInvoice = (invoice) => {
+  const payInvoice = (invoice, details) => {
     setInvoices((prev) =>
       prev.map((entry) => (entry.id === invoice.id ? { ...entry, status: "Paid" } : entry))
     );
+
+    const last4 = details.cardNumber.slice(-4);
     setPayments((prev) => [
       {
         id: `PAY-${Date.now()}`,
         item: invoice.item,
         amount: invoice.amount,
-        paidAt: new Date().toLocaleString()
+        paidAt: new Date().toLocaleString(),
+        method: details.method,
+        reference: `TXN-${Date.now()}`,
+        cardLast4: last4
       },
       ...prev
     ]);
@@ -399,7 +417,80 @@ function PatientModule({ currentUsername = "patient" }) {
 
   const handleProfileField = (event) => {
     const { name, value } = event.target;
-    setProfile((prev) => ({ ...prev, [name]: value }));
+    setProfileDraft((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePaymentField = (event) => {
+    const { name, value } = event.target;
+    setPaymentForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const startInvoicePayment = (invoice) => {
+    setPayingInvoiceId(invoice.id);
+    setPaymentForm({
+      method: "Card",
+      cardholderName: profile.name,
+      cardNumber: "",
+      expiryMonth: "",
+      expiryYear: "",
+      cvv: "",
+      billingAddress: "",
+      city: "",
+      country: ""
+    });
+  };
+
+  const closePaymentModal = () => {
+    setPayingInvoiceId("");
+  };
+
+  const submitInvoicePayment = () => {
+    const { cardholderName, cardNumber, expiryMonth, expiryYear, cvv, billingAddress, city, country, method } = paymentForm;
+    if (
+      !cardholderName.trim() ||
+      !cardNumber.trim() ||
+      !expiryMonth.trim() ||
+      !expiryYear.trim() ||
+      !cvv.trim() ||
+      !billingAddress.trim() ||
+      !city.trim() ||
+      !country.trim() ||
+      !method
+    ) {
+      showNotice("Please fill all payment details.");
+      return;
+    }
+
+    const numberOnly = cardNumber.replace(/\s+/g, "");
+    if (!/^\d{16}$/.test(numberOnly)) {
+      showNotice("Card number must be 16 digits.");
+      return;
+    }
+
+    if (!/^(0[1-9]|1[0-2])$/.test(expiryMonth)) {
+      showNotice("Expiry month must be between 01 and 12.");
+      return;
+    }
+
+    if (!/^\d{4}$/.test(expiryYear)) {
+      showNotice("Expiry year must be 4 digits.");
+      return;
+    }
+
+    if (!/^\d{3,4}$/.test(cvv)) {
+      showNotice("CVV must be 3 or 4 digits.");
+      return;
+    }
+
+    const invoice = invoices.find((entry) => entry.id === payingInvoiceId);
+    if (!invoice) {
+      closePaymentModal();
+      return;
+    }
+
+    payInvoice(invoice, { ...paymentForm, cardNumber: numberOnly });
+    closePaymentModal();
+    showNotice(`Payment completed for ${invoice.item}.`);
   };
 
   const handlePasswordField = (event) => {
@@ -408,11 +499,12 @@ function PatientModule({ currentUsername = "patient" }) {
   };
 
   const saveProfile = () => {
-    if (!profile.name.trim() || !profile.phone.trim() || !profile.email.trim()) {
+    if (!profileDraft.name.trim() || !profileDraft.phone.trim() || !profileDraft.email.trim()) {
       showNotice("Please complete name, phone, and email.");
       return;
     }
 
+    setProfile(profileDraft);
     showNotice("Profile updated successfully.");
   };
 
@@ -463,6 +555,10 @@ function PatientModule({ currentUsername = "patient" }) {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(profile));
+  }, [profile]);
+
+  useEffect(() => {
+    setProfileDraft(profile);
   }, [profile]);
 
   useEffect(() => {
@@ -784,7 +880,7 @@ function PatientModule({ currentUsername = "patient" }) {
                         <td>${entry.amount}</td>
                         <td>{entry.status}</td>
                         <td>
-                          <button className="erp-primary-btn" type="button" onClick={() => payInvoice(entry)}>
+                          <button className="erp-primary-btn" type="button" onClick={() => startInvoicePayment(entry)}>
                             Pay Now
                           </button>
                         </td>
@@ -809,6 +905,8 @@ function PatientModule({ currentUsername = "patient" }) {
                     <th>Paid At</th>
                     <th>Item</th>
                     <th>Amount</th>
+                    <th>Method</th>
+                    <th>Reference</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -818,11 +916,13 @@ function PatientModule({ currentUsername = "patient" }) {
                         <td>{entry.paidAt}</td>
                         <td>{entry.item}</td>
                         <td>${entry.amount}</td>
+                        <td>{entry.method}{entry.cardLast4 ? ` •••• ${entry.cardLast4}` : ""}</td>
+                        <td>{entry.reference}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="3">No payments made yet.</td>
+                      <td colSpan="5">No payments made yet.</td>
                     </tr>
                   )}
                 </tbody>
@@ -931,40 +1031,82 @@ function PatientModule({ currentUsername = "patient" }) {
       );
     }
 
+    if (activeMenu === "profile") {
+      return (
+        <section className="erp-panel">
+          <h3>Profile</h3>
+          <p>View your name, contact info, and medical details.</p>
+
+          <div className="erp-form-grid">
+            <label>
+              Name
+              <input name="name" value={profile.name} readOnly />
+            </label>
+            <label>
+              Phone
+              <input name="phone" value={profile.phone} readOnly />
+            </label>
+            <label>
+              Email
+              <input name="email" value={profile.email} readOnly />
+            </label>
+            <label>
+              Blood Group
+              <input name="bloodGroup" value={profile.bloodGroup} readOnly />
+            </label>
+            <label>
+              Medical Info (optional)
+              <input name="allergyInfo" value={profile.allergyInfo} readOnly />
+            </label>
+          </div>
+        </section>
+      );
+    }
+
     return (
       <section className="erp-panel">
-        <h3>{activeMenu === "edit-profile" ? "Edit Profile" : "Profile"}</h3>
+        <h3>Edit Profile</h3>
         <p>Update your name, contact info, and optional medical details.</p>
 
         <div className="erp-form-grid">
           <label>
             Name
-            <input name="name" value={profile.name} onChange={handleProfileField} />
+            <input name="name" value={profileDraft.name} onChange={handleProfileField} />
           </label>
           <label>
             Phone
-            <input name="phone" value={profile.phone} onChange={handleProfileField} />
+            <input name="phone" value={profileDraft.phone} onChange={handleProfileField} />
           </label>
           <label>
             Email
-            <input name="email" value={profile.email} onChange={handleProfileField} />
+            <input name="email" value={profileDraft.email} onChange={handleProfileField} />
           </label>
           <label>
             Blood Group
-            <input name="bloodGroup" value={profile.bloodGroup} onChange={handleProfileField} />
+            <input name="bloodGroup" value={profileDraft.bloodGroup} onChange={handleProfileField} />
           </label>
           <label>
             Medical Info (optional)
-            <input name="allergyInfo" value={profile.allergyInfo} onChange={handleProfileField} />
+            <input name="allergyInfo" value={profileDraft.allergyInfo} onChange={handleProfileField} />
           </label>
         </div>
 
-        <button className="erp-primary-btn" type="button" onClick={saveProfile}>
-          Update Profile
-        </button>
+        <div className="inline-actions">
+          <button
+            type="button"
+            onClick={() => setProfileDraft(profile)}
+          >
+            Reset
+          </button>
+          <button className="erp-primary-btn" type="button" onClick={saveProfile}>
+            Update Profile
+          </button>
+        </div>
       </section>
     );
   };
+
+  const payingInvoice = invoices.find((entry) => entry.id === payingInvoiceId);
 
   return (
     <section className="patient-erp-shell">
@@ -1073,6 +1215,98 @@ function PatientModule({ currentUsername = "patient" }) {
               <button type="button" onClick={() => setRescheduleId("")}>Cancel</button>
               <button className="erp-primary-btn" type="button" onClick={submitReschedule}>
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {payingInvoice ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <h3>Complete Payment</h3>
+            <p>
+              Invoice: <strong>{payingInvoice.item}</strong> | Amount: <strong>${payingInvoice.amount}</strong>
+            </p>
+
+            <div className="modal-form-grid">
+              <label>
+                Payment Method
+                <select name="method" value={paymentForm.method} onChange={handlePaymentField}>
+                  <option value="Card">Card</option>
+                  <option value="Debit Card">Debit Card</option>
+                  <option value="Credit Card">Credit Card</option>
+                </select>
+              </label>
+              <label>
+                Cardholder Name
+                <input
+                  name="cardholderName"
+                  value={paymentForm.cardholderName}
+                  onChange={handlePaymentField}
+                  placeholder="Name on card"
+                />
+              </label>
+              <label>
+                Card Number
+                <input
+                  name="cardNumber"
+                  value={paymentForm.cardNumber}
+                  onChange={handlePaymentField}
+                  placeholder="16-digit card number"
+                />
+              </label>
+              <label>
+                Expiry Month (MM)
+                <input
+                  name="expiryMonth"
+                  value={paymentForm.expiryMonth}
+                  onChange={handlePaymentField}
+                  placeholder="MM"
+                />
+              </label>
+              <label>
+                Expiry Year (YYYY)
+                <input
+                  name="expiryYear"
+                  value={paymentForm.expiryYear}
+                  onChange={handlePaymentField}
+                  placeholder="YYYY"
+                />
+              </label>
+              <label>
+                CVV
+                <input
+                  name="cvv"
+                  value={paymentForm.cvv}
+                  onChange={handlePaymentField}
+                  placeholder="CVV"
+                  type="password"
+                />
+              </label>
+              <label>
+                Billing Address
+                <input
+                  name="billingAddress"
+                  value={paymentForm.billingAddress}
+                  onChange={handlePaymentField}
+                  placeholder="Street address"
+                />
+              </label>
+              <label>
+                City
+                <input name="city" value={paymentForm.city} onChange={handlePaymentField} />
+              </label>
+              <label>
+                Country
+                <input name="country" value={paymentForm.country} onChange={handlePaymentField} />
+              </label>
+            </div>
+
+            <div className="modal-actions">
+              <button type="button" onClick={closePaymentModal}>Cancel</button>
+              <button className="erp-primary-btn" type="button" onClick={submitInvoicePayment}>
+                Confirm Payment
               </button>
             </div>
           </div>

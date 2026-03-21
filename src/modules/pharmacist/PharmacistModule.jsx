@@ -472,6 +472,36 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
     [pendingPrescriptions, pendingOrders, lowStockItems, inventory]
   );
 
+  const pharmacistHomeCards = useMemo(
+    () => [
+      {
+        key: "verify-prescription",
+        label: "Pending Prescriptions",
+        value: stats.pendingPrescriptions,
+        detail: "Awaiting processing"
+      },
+      {
+        key: "dispatch-deliver",
+        label: "Dispensed Today",
+        value: transactions.filter((tx) => tx.date === new Date().toISOString().slice(0, 10)).length,
+        detail: "Successfully processed"
+      },
+      {
+        key: "update-stock",
+        label: "Low Stock Items",
+        value: stats.lowStockItems,
+        detail: "Require restocking"
+      },
+      {
+        key: "add-medicines",
+        label: "Total Inventory",
+        value: stats.totalInventory,
+        detail: "Unique medications"
+      }
+    ],
+    [stats, transactions]
+  );
+
   // Notifications
   const notifications = useMemo(() => {
     const notif = [];
@@ -545,34 +575,56 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
           </header>
 
           {/* Stats Cards */}
-          <div className="erp-stats-grid doctor-stats">
-            <article className="erp-stat-card">
-              <h4>Pending Prescriptions</h4>
-              <p>{stats.pendingPrescriptions}</p>
-              <span>Awaiting verification</span>
-            </article>
-            <article className="erp-stat-card">
-              <h4>Pending Orders</h4>
-              <p>{stats.pendingOrders}</p>
-              <span>Awaiting approval</span>
-            </article>
-            <article className="erp-stat-card">
-              <h4>Low Stock Items</h4>
-              <p>{stats.lowStockItems}</p>
-              <span>Require restocking</span>
-            </article>
-            <article className="erp-stat-card">
-              <h4>Total Inventory</h4>
-              <p>{stats.totalInventory}</p>
-              <span>Unique medicines</span>
-            </article>
-          </div>
+          {activeMenu !== "view-prescriptions" ? (
+            <div className="erp-stats-grid doctor-stats">
+              <article className="erp-stat-card">
+                <h4>Pending Prescriptions</h4>
+                <p>{stats.pendingPrescriptions}</p>
+                <span>Awaiting verification</span>
+              </article>
+              <article className="erp-stat-card">
+                <h4>Pending Orders</h4>
+                <p>{stats.pendingOrders}</p>
+                <span>Awaiting approval</span>
+              </article>
+              <article className="erp-stat-card">
+                <h4>Low Stock Items</h4>
+                <p>{stats.lowStockItems}</p>
+                <span>Require restocking</span>
+              </article>
+              <article className="erp-stat-card">
+                <h4>Total Inventory</h4>
+                <p>{stats.totalInventory}</p>
+                <span>Unique medicines</span>
+              </article>
+            </div>
+          ) : null}
 
           {/* Content Area */}
           <section className="erp-panel pharmacist-content-panel">
             {/* VIEW PRESCRIPTIONS */}
             {activeMenu === "view-prescriptions" && (
               <div>
+                <section className="erp-panel patient-home-panel" style={{ marginBottom: "1rem" }}>
+                  <h3 className="patient-welcome">Welcome {profile.name}</h3>
+                  <div className="patient-home-grid">
+                    {pharmacistHomeCards.map((card) => (
+                      <button
+                        key={`${card.key}-${card.label}`}
+                        type="button"
+                        className="patient-home-card"
+                        onClick={() => setActiveMenu(card.key)}
+                      >
+                        <div className="patient-card-content">
+                          <p className="patient-card-label">{card.label}</p>
+                          <p className="patient-card-value">{card.value}</p>
+                          <p className="patient-card-detail">{card.detail}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
                 <h3>View Prescriptions</h3>
                 <p style={{ color: "#666", marginBottom: "1rem" }}>Prescriptions received from doctors for dispensing</p>
 

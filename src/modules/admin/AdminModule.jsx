@@ -133,6 +133,10 @@ const ALL_USERS = [
   { name: "Admin User", email: "admin@hospital.com", role: "Admin", department: "Administration", status: "Active" }
 ];
 
+const STORAGE_KEYS = {
+  roleAccess: "medico.admin.roleAccess"
+};
+
 function AdminModule({ currentUsername = "admin" }) {
   const [activeMenu, setActiveMenu] = useState("overview");
   const [openGroup, setOpenGroup] = useState("dashboard");
@@ -156,6 +160,32 @@ function AdminModule({ currentUsername = "admin" }) {
     department: "Administration"
   });
   const [passwordForm, setPasswordForm] = useState({ current: "", next: "", confirm: "" });
+  const [roleAccess, setRoleAccess] = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.roleAccess);
+      if (!raw) {
+        return ROLE_ACCESS;
+      }
+      const parsed = JSON.parse(raw);
+      return parsed ?? ROLE_ACCESS;
+    } catch {
+      return ROLE_ACCESS;
+    }
+  });
+  const [permissionAction, setPermissionAction] = useState({ role: "Doctor", permission: PERMISSION_ROWS[0] });
+  const [editingRoleName, setEditingRoleName] = useState("");
+
+  const roles = useMemo(() => Object.keys(roleAccess), [roleAccess]);
+
+  const adminHomeCards = useMemo(
+    () => [
+      { key: "user-management", label: "Total Users", value: "1,234", detail: "+12% from last month" },
+      { key: "user-management", label: "Active Doctors", value: "156", detail: "+5% from last month" },
+      { key: "system-control", label: "Departments", value: "12", detail: "0% from last month" },
+      { key: "data-management", label: "Active Patients", value: "892", detail: "+18% from last month" }
+    ],
+    []
+  );
 
   const showNotice = (message) => {
     setUiNotice(message);
@@ -200,6 +230,10 @@ function AdminModule({ currentUsername = "admin" }) {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.roleAccess, JSON.stringify(roleAccess));
+  }, [roleAccess]);
 
   const userToEdit = users.find((user) => user.email === editingUserEmail);
   const userToDelete = users.find((user) => user.email === deleteUserEmail);
@@ -282,6 +316,48 @@ function AdminModule({ currentUsername = "admin" }) {
     }
     setPasswordForm({ current: "", next: "", confirm: "" });
     showNotice("Password updated.");
+  };
+
+  const toggleRolePermission = (role, permission) => {
+    setRoleAccess((prev) => {
+      const rolePermissions = prev[role] || [];
+      const hasPermission = rolePermissions.includes(permission);
+      return {
+        ...prev,
+        [role]: hasPermission
+          ? rolePermissions.filter((item) => item !== permission)
+          : [...rolePermissions, permission]
+      };
+    });
+  };
+
+  const assignPermission = () => {
+    const { role, permission } = permissionAction;
+    if (!role || !permission) {
+      showNotice("Select role and permission first.");
+      return;
+    }
+    setRoleAccess((prev) => {
+      const rolePermissions = prev[role] || [];
+      if (rolePermissions.includes(permission)) {
+        return prev;
+      }
+      return { ...prev, [role]: [...rolePermissions, permission] };
+    });
+    showNotice(`${permission} assigned to ${role}.`);
+  };
+
+  const revokePermission = () => {
+    const { role, permission } = permissionAction;
+    if (!role || !permission) {
+      showNotice("Select role and permission first.");
+      return;
+    }
+    setRoleAccess((prev) => {
+      const rolePermissions = prev[role] || [];
+      return { ...prev, [role]: rolePermissions.filter((item) => item !== permission) };
+    });
+    showNotice(`${permission} revoked from ${role}.`);
   };
 
   const renderSection = () => {
@@ -367,7 +443,6 @@ function AdminModule({ currentUsername = "admin" }) {
     }
 
     if (activeMenu === "access-permissions") {
-      const roles = Object.keys(ROLE_ACCESS);
       return (
         <section className="erp-panel">
           <h3>Access & Permissions</h3>
@@ -390,8 +465,8 @@ function AdminModule({ currentUsername = "admin" }) {
                       <td key={`${role}-${permission}`}>
                         <input
                           type="checkbox"
-                          checked={ROLE_ACCESS[role].includes(permission)}
-                          readOnly
+                          checked={(roleAccess[role] || []).includes(permission)}
+                          onChange={() => toggleRolePermission(role, permission)}
                         />
                       </td>
                     ))}
@@ -412,9 +487,37 @@ function AdminModule({ currentUsername = "admin" }) {
         <section className="erp-panel">
           <h3>Assign / Revoke Permissions</h3>
           <p>Grant or revoke role permissions securely.</p>
+          <div className="erp-form-grid">
+            <label>
+              Role
+              <select
+                value={permissionAction.role}
+                onChange={(event) =>
+                  setPermissionAction((prev) => ({ ...prev, role: event.target.value }))
+                }
+              >
+                {roles.map((role) => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Permission
+              <select
+                value={permissionAction.permission}
+                onChange={(event) =>
+                  setPermissionAction((prev) => ({ ...prev, permission: event.target.value }))
+                }
+              >
+                {PERMISSION_ROWS.map((permission) => (
+                  <option key={permission} value={permission}>{permission}</option>
+                ))}
+              </select>
+            </label>
+          </div>
           <div className="inline-actions">
-            <button type="button" onClick={() => showNotice("Permissions assigned.")}>Assign Permissions</button>
-            <button type="button" onClick={() => showNotice("Permissions revoked.")}>Revoke Permissions</button>
+            <button type="button" onClick={assignPermission}>Assign Permissions</button>
+            <button type="button" onClick={revokePermission}>Revoke Permissions</button>
           </div>
           <p>Use the Access & Permissions matrix to configure permission-level control.</p>
         </section>
@@ -430,10 +533,15 @@ function AdminModule({ currentUsername = "admin" }) {
             <table className="erp-table">
               <thead><tr><th>Role</th><th>Users</th><th>Action</th></tr></thead>
               <tbody>
-                <tr><td>Admin</td><td>4</td><td><button type="button" onClick={() => showNotice("Admin role updated.")}>Edit Role</button></td></tr>
-                <tr><td>Doctor</td><td>156</td><td><button type="button" onClick={() => showNotice("Doctor role updated.")}>Edit Role</button></td></tr>
-                <tr><td>Pharmacist</td><td>22</td><td><button type="button" onClick={() => showNotice("Pharmacist role updated.")}>Edit Role</button></td></tr>
-                <tr><td>Patient</td><td>892</td><td><button type="button" onClick={() => showNotice("Patient role updated.")}>Edit Role</button></td></tr>
+                {roles.map((role) => (
+                  <tr key={role}>
+                    <td>{role}</td>
+                    <td>{users.filter((user) => user.role === role).length}</td>
+                    <td>
+                      <button type="button" onClick={() => setEditingRoleName(role)}>Edit Role</button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -766,14 +874,23 @@ function AdminModule({ currentUsername = "admin" }) {
     }
 
     return (
-      <section className="erp-panel">
-        <h3>Admin Dashboard</h3>
-        <p>Manage users, departments, database, and settings.</p>
-        <div className="erp-stats-grid">
-          <article className="erp-stat-card"><h4>Total Users</h4><p>1,234</p><span>+12% from last month</span></article>
-          <article className="erp-stat-card"><h4>Active Doctors</h4><p>156</p><span>+5% from last month</span></article>
-          <article className="erp-stat-card"><h4>Departments</h4><p>12</p><span>0% from last month</span></article>
-          <article className="erp-stat-card"><h4>Active Patients</h4><p>892</p><span>+18% from last month</span></article>
+      <section className="erp-panel patient-home-panel">
+        <h3 className="patient-welcome">Welcome {currentUsername}</h3>
+        <div className="patient-home-grid">
+          {adminHomeCards.map((card) => (
+            <button
+              key={`${card.key}-${card.label}`}
+              type="button"
+              className="patient-home-card"
+              onClick={() => setActiveMenu(card.key)}
+            >
+              <div className="patient-card-content">
+                <p className="patient-card-label">{card.label}</p>
+                <p className="patient-card-value">{card.value}</p>
+                <p className="patient-card-detail">{card.detail}</p>
+              </div>
+            </button>
+          ))}
         </div>
         <div className="quick-section">
           <h4>Quick Actions</h4>
@@ -1006,6 +1123,54 @@ function AdminModule({ currentUsername = "admin" }) {
               <button type="button" onClick={() => setDeleteUserEmail("")}>Cancel</button>
               <button className="danger-solid" type="button" onClick={confirmDeleteUser}>
                 Delete User
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {editingRoleName ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <h3>Edit Role Permissions</h3>
+            <p>Role: <strong>{editingRoleName}</strong></p>
+
+            <div className="table-wrap" style={{ maxHeight: "320px" }}>
+              <table className="erp-table">
+                <thead>
+                  <tr>
+                    <th>Permission</th>
+                    <th>Allowed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {PERMISSION_ROWS.map((permission) => (
+                    <tr key={`${editingRoleName}-${permission}`}>
+                      <td>{permission}</td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={(roleAccess[editingRoleName] || []).includes(permission)}
+                          onChange={() => toggleRolePermission(editingRoleName, permission)}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="modal-actions">
+              <button type="button" onClick={() => setEditingRoleName("")}>Close</button>
+              <button
+                className="erp-primary-btn"
+                type="button"
+                onClick={() => {
+                  setEditingRoleName("");
+                  showNotice(`${editingRoleName} role permissions updated.`);
+                }}
+              >
+                Save Role
               </button>
             </div>
           </div>

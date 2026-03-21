@@ -114,7 +114,9 @@ const STORAGE_KEYS = {
   appointments: "medico.shared.appointments",
   records: "medico.doctor.records",
   prescriptions: "medico.shared.prescriptions",
-  availability: "medico.doctor.availability"
+  availability: "medico.doctor.availability",
+  profile: "medico.doctor.profile",
+  consultationLogs: "medico.doctor.consultationLogs"
 };
 
 const DEFAULT_AVAILABILITY = {
@@ -132,7 +134,11 @@ const DEFAULT_AVAILABILITY = {
 const DEFAULT_PROFILE = {
   fullName: CURRENT_DOCTOR_NAME,
   specialization: "Neurology",
-  experience: "12 years"
+  experience: "12 years",
+  email: "michael.chen@hospital.com",
+  phone: "+1 555-730-2201",
+  department: "Neurology",
+  bio: "Focused on neuro care, long-term treatment plans, and tele-consult follow-ups."
 };
 
 function readStorage(key, fallbackValue) {
@@ -173,6 +179,9 @@ function DoctorModule({ currentUsername = "doctor" }) {
   const [patientSearch, setPatientSearch] = useState("");
   const [recordForm, setRecordForm] = useState({ patientId: "P-01", diagnosis: "", symptoms: "", notes: "" });
   const [medicalRecords, setMedicalRecords] = useState(() => readStorage(STORAGE_KEYS.records, []));
+  const [consultationLogs, setConsultationLogs] = useState(() =>
+    readStorage(STORAGE_KEYS.consultationLogs, CONSULTATION_LOGS)
+  );
   const [prescriptionForm, setPrescriptionForm] = useState({
     patientId: "P-01",
     medicine: "",
@@ -189,7 +198,21 @@ function DoctorModule({ currentUsername = "doctor" }) {
     ...DEFAULT_AVAILABILITY,
     ...readStorage(STORAGE_KEYS.availability, DEFAULT_AVAILABILITY)
   }));
-  const [profileForm, setProfileForm] = useState(DEFAULT_PROFILE);
+  const [profileForm, setProfileForm] = useState(() => ({
+    ...DEFAULT_PROFILE,
+    ...readStorage(STORAGE_KEYS.profile, DEFAULT_PROFILE)
+  }));
+  const [profileDraft, setProfileDraft] = useState(() => ({
+    ...DEFAULT_PROFILE,
+    ...readStorage(STORAGE_KEYS.profile, DEFAULT_PROFILE)
+  }));
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [consultationModal, setConsultationModal] = useState({
+    open: false,
+    patientName: "",
+    mode: "",
+    note: ""
+  });
 
   const showNotice = (message) => {
     setUiNotice(message);
@@ -235,6 +258,37 @@ function DoctorModule({ currentUsername = "doctor" }) {
     });
   }, [patientSearch]);
 
+  const nextUpcoming = upcomingAppointments[0];
+  const doctorHomeCards = useMemo(
+    () => [
+      {
+        key: "appointments",
+        label: "Today's Appointments",
+        value: upcomingAppointments.length,
+        detail: `${upcomingAppointments.filter((entry) => entry.status === "Confirmed").length} confirmed, ${upcomingAppointments.filter((entry) => entry.status === "Requested").length} pending`
+      },
+      {
+        key: "interaction",
+        label: "Total Patients",
+        value: PATIENTS.length,
+        detail: "Active patients under care"
+      },
+      {
+        key: "records",
+        label: "Pending Reviews",
+        value: medicalRecords.length,
+        detail: "Medical records to review"
+      },
+      {
+        key: "appointments",
+        label: "Next Appointment",
+        value: nextUpcoming ? `${nextUpcoming.time}` : "-",
+        detail: nextUpcoming ? `${nextUpcoming.patientName} - ${nextUpcoming.type}` : "No confirmed appointments"
+      }
+    ],
+    [upcomingAppointments, medicalRecords.length, nextUpcoming]
+  );
+
   const updateAppointmentStatus = (id, nextStatus) => {
     setAppointmentRows((prev) =>
       prev.map((row) => (row.id === id ? { ...row, status: nextStatus } : row))
@@ -261,7 +315,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
 
   const handleProfileChange = (event) => {
     const { name, value } = event.target;
-    setProfileForm((prev) => ({ ...prev, [name]: value }));
+    setProfileDraft((prev) => ({ ...prev, [name]: value }));
   };
 
   const saveAvailabilitySettings = () => {
@@ -269,7 +323,37 @@ function DoctorModule({ currentUsername = "doctor" }) {
   };
 
   const startPatientCommunication = (patientName, mode) => {
-    showNotice(`${mode} started with ${patientName}.`);
+    setConsultationModal({
+      open: true,
+      patientName,
+      mode,
+      note: ""
+    });
+  };
+
+  const closeConsultationModal = () => {
+    setConsultationModal({ open: false, patientName: "", mode: "", note: "" });
+  };
+
+  const submitConsultationStart = () => {
+    if (!consultationModal.note.trim()) {
+      showNotice("Please add consultation reason or notes before starting.");
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    setConsultationLogs((prev) => [
+      {
+        date: today,
+        patient: consultationModal.patientName,
+        mode: consultationModal.mode,
+        note: consultationModal.note.trim()
+      },
+      ...prev
+    ]);
+
+    showNotice(`${consultationModal.mode} started with ${consultationModal.patientName}.`);
+    closeConsultationModal();
   };
 
   const handleNotificationsAction = (action) => {
@@ -282,12 +366,26 @@ function DoctorModule({ currentUsername = "doctor" }) {
   };
 
   const saveDoctorProfile = () => {
-    if (!profileForm.specialization.trim() || !profileForm.experience.trim()) {
-      showNotice("Specialization and experience are required.");
+    if (
+      !profileDraft.fullName.trim() ||
+      !profileDraft.specialization.trim() ||
+      !profileDraft.experience.trim() ||
+      !profileDraft.email.trim() ||
+      !profileDraft.phone.trim() ||
+      !profileDraft.department.trim()
+    ) {
+      showNotice("Please complete all required profile fields.");
       return;
     }
 
+    setProfileForm(profileDraft);
+    setIsEditingProfile(false);
     showNotice("Profile updated successfully.");
+  };
+
+  const cancelProfileEdit = () => {
+    setProfileDraft(profileForm);
+    setIsEditingProfile(false);
   };
 
   const saveMedicalRecord = () => {
@@ -393,6 +491,14 @@ function DoctorModule({ currentUsername = "doctor" }) {
     localStorage.setItem(STORAGE_KEYS.availability, JSON.stringify(availability));
   }, [availability]);
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(profileForm));
+  }, [profileForm]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.consultationLogs, JSON.stringify(consultationLogs));
+  }, [consultationLogs]);
+
   return (
     <section className="doctor-erp-shell">
       <aside className="doctor-left-panel">
@@ -443,76 +549,50 @@ function DoctorModule({ currentUsername = "doctor" }) {
 
         {uiNotice ? <p className="doctor-notice">{uiNotice}</p> : null}
 
-        <div className="erp-stats-grid doctor-stats">
-          <article className="erp-stat-card">
-            <h4>Today's Appointments</h4>
-            <p>{upcomingAppointments.length}</p>
-            <span>Including pending requests</span>
-          </article>
-          <article className="erp-stat-card">
-            <h4>Total Patients</h4>
-            <p>{PATIENTS.length}</p>
-            <span>Active under care</span>
-          </article>
-          <article className="erp-stat-card">
-            <h4>Consultations This Week</h4>
-            <p>18</p>
-            <span>Video and chat combined</span>
-          </article>
-          <article className="erp-stat-card">
-            <h4>Pending Notifications</h4>
-            <p>{NOTIFICATIONS.length}</p>
-            <span>Needs your attention</span>
-          </article>
-        </div>
+        {activeTab !== "dashboard" ? (
+          <div className="erp-stats-grid doctor-stats">
+            <article className="erp-stat-card">
+              <h4>Today's Appointments</h4>
+              <p>{upcomingAppointments.length}</p>
+              <span>Including pending requests</span>
+            </article>
+            <article className="erp-stat-card">
+              <h4>Total Patients</h4>
+              <p>{PATIENTS.length}</p>
+              <span>Active under care</span>
+            </article>
+            <article className="erp-stat-card">
+              <h4>Consultations This Week</h4>
+              <p>{consultationLogs.length}</p>
+              <span>Video and chat combined</span>
+            </article>
+            <article className="erp-stat-card">
+              <h4>Pending Notifications</h4>
+              <p>{NOTIFICATIONS.length}</p>
+              <span>Needs your attention</span>
+            </article>
+          </div>
+        ) : null}
 
         {activeTab === "dashboard" ? (
-          <section className="erp-panel">
-            <h3>Dashboard / Overview</h3>
-            <p>Track total patients, appointment count, and daily activity summary.</p>
+          <section className="erp-panel patient-home-panel">
+            <h3 className="patient-welcome">Welcome {profileForm.fullName}</h3>
 
-            <div className="erp-stats-grid doctor-stats-3">
-              <article className="erp-stat-card">
-                <h4>Total Patients</h4>
-                <p>{PATIENTS.length}</p>
-                <span>Currently under your care</span>
-              </article>
-              <article className="erp-stat-card">
-                <h4>Appointments Count</h4>
-                <p>{doctorAppointments.length}</p>
-                <span>Upcoming and completed</span>
-              </article>
-              <article className="erp-stat-card">
-                <h4>Activity Summary</h4>
-                <p>{CONSULTATION_LOGS.length}</p>
-                <span>Recent consultations logged</span>
-              </article>
-            </div>
-
-            <div className="quick-section">
-              <h4>Recent Activity</h4>
-              <div className="table-wrap">
-                <table className="erp-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Patient</th>
-                      <th>Mode</th>
-                      <th>Summary</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {CONSULTATION_LOGS.map((entry) => (
-                      <tr key={`${entry.date}-${entry.patient}-dashboard`}>
-                        <td>{entry.date}</td>
-                        <td>{entry.patient}</td>
-                        <td>{entry.mode}</td>
-                        <td>{entry.note}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="patient-home-grid">
+              {doctorHomeCards.map((card) => (
+                <button
+                  key={`${card.key}-${card.label}`}
+                  type="button"
+                  className="patient-home-card"
+                  onClick={() => setActiveTab(card.key)}
+                >
+                  <div className="patient-card-content">
+                    <p className="patient-card-label">{card.label}</p>
+                    <p className="patient-card-value">{card.value}</p>
+                    <p className="patient-card-detail">{card.detail}</p>
+                  </div>
+                </button>
+              ))}
             </div>
           </section>
         ) : null}
@@ -931,7 +1011,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {CONSULTATION_LOGS.map((row) => (
+                  {consultationLogs.map((row) => (
                     <tr key={`${row.date}-${row.patient}`}>
                       <td>{row.date}</td>
                       <td>{row.patient}</td>
@@ -968,32 +1048,118 @@ function DoctorModule({ currentUsername = "doctor" }) {
         {activeTab === "profile" ? (
           <section className="erp-panel">
             <h3>Profile</h3>
-            <p>View profile and edit specialization and experience details.</p>
-            <div className="erp-form-grid">
-              <label>
-                Full Name
-                <input name="fullName" value={profileForm.fullName} onChange={handleProfileChange} readOnly />
-              </label>
-              <label>
-                Specialization
-                <input
-                  name="specialization"
-                  value={profileForm.specialization}
-                  onChange={handleProfileChange}
-                />
-              </label>
-              <label>
-                Experience
-                <input name="experience" value={profileForm.experience} onChange={handleProfileChange} />
-              </label>
-            </div>
+            <p>View and manage professional profile details.</p>
 
-            <button className="erp-primary-btn" type="button" onClick={saveDoctorProfile}>
-              Update Profile
-            </button>
+            {!isEditingProfile ? (
+              <>
+                <div className="erp-form-grid">
+                  <label>
+                    Full Name
+                    <input name="fullName" value={profileForm.fullName} readOnly />
+                  </label>
+                  <label>
+                    Specialization
+                    <input name="specialization" value={profileForm.specialization} readOnly />
+                  </label>
+                  <label>
+                    Experience
+                    <input name="experience" value={profileForm.experience} readOnly />
+                  </label>
+                  <label>
+                    Email
+                    <input name="email" value={profileForm.email} readOnly />
+                  </label>
+                  <label>
+                    Phone
+                    <input name="phone" value={profileForm.phone} readOnly />
+                  </label>
+                  <label>
+                    Department
+                    <input name="department" value={profileForm.department} readOnly />
+                  </label>
+                  <label style={{ gridColumn: "1 / -1" }}>
+                    Bio
+                    <input name="bio" value={profileForm.bio} readOnly />
+                  </label>
+                </div>
+
+                <button className="erp-primary-btn" type="button" onClick={() => setIsEditingProfile(true)}>
+                  Edit Profile
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="erp-form-grid">
+                  <label>
+                    Full Name
+                    <input name="fullName" value={profileDraft.fullName} onChange={handleProfileChange} />
+                  </label>
+                  <label>
+                    Specialization
+                    <input name="specialization" value={profileDraft.specialization} onChange={handleProfileChange} />
+                  </label>
+                  <label>
+                    Experience
+                    <input name="experience" value={profileDraft.experience} onChange={handleProfileChange} />
+                  </label>
+                  <label>
+                    Email
+                    <input name="email" value={profileDraft.email} onChange={handleProfileChange} />
+                  </label>
+                  <label>
+                    Phone
+                    <input name="phone" value={profileDraft.phone} onChange={handleProfileChange} />
+                  </label>
+                  <label>
+                    Department
+                    <input name="department" value={profileDraft.department} onChange={handleProfileChange} />
+                  </label>
+                  <label style={{ gridColumn: "1 / -1" }}>
+                    Bio
+                    <input name="bio" value={profileDraft.bio} onChange={handleProfileChange} />
+                  </label>
+                </div>
+
+                <div className="inline-actions">
+                  <button type="button" onClick={cancelProfileEdit}>Cancel</button>
+                  <button className="erp-primary-btn" type="button" onClick={saveDoctorProfile}>
+                    Save Profile
+                  </button>
+                </div>
+              </>
+            )}
           </section>
         ) : null}
       </div>
+
+      {consultationModal.open ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <h3>Start {consultationModal.mode}</h3>
+            <p>
+              Patient: <strong>{consultationModal.patientName}</strong>
+            </p>
+
+            <label className="doctor-notes-label">
+              Consultation Reason / Notes
+              <textarea
+                value={consultationModal.note}
+                onChange={(event) =>
+                  setConsultationModal((prev) => ({ ...prev, note: event.target.value }))
+                }
+                placeholder="Add reason for starting this consultation"
+              />
+            </label>
+
+            <div className="modal-actions">
+              <button type="button" onClick={closeConsultationModal}>Cancel</button>
+              <button className="erp-primary-btn" type="button" onClick={submitConsultationStart}>
+                Start Session
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

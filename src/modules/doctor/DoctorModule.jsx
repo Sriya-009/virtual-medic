@@ -2,22 +2,30 @@ import { useEffect, useMemo, useState } from "react";
 
 const TABS = [
   {
-    key: "clinical",
-    label: "Clinical Operations",
+    key: "overview",
+    label: "Dashboard & Planning",
     items: [
+      { key: "dashboard", label: "Dashboard / Overview" },
       { key: "appointments", label: "Appointment Management" },
+      { key: "availability", label: "Availability Settings" }
+    ]
+  },
+  {
+    key: "clinical",
+    label: "Clinical Care",
+    items: [
       { key: "interaction", label: "Patient Interaction" },
       { key: "records", label: "Medical Records" },
       { key: "prescriptions", label: "Prescription Management" }
     ]
   },
   {
-    key: "analytics",
-    label: "Insights & Profile",
+    key: "insights",
+    label: "Insights & Account",
     items: [
-      { key: "reports", label: "Reports & Tracking" },
+      { key: "reports", label: "Reports" },
+      { key: "profile", label: "Profile" },
       { key: "notifications", label: "Notifications" },
-      { key: "profile", label: "Profile Management" }
     ]
   }
 ];
@@ -109,6 +117,24 @@ const STORAGE_KEYS = {
   availability: "medico.doctor.availability"
 };
 
+const DEFAULT_AVAILABILITY = {
+  monday: "09:00 - 17:00",
+  tuesday: "09:00 - 17:00",
+  wednesday: "09:00 - 15:00",
+  thursday: "10:00 - 18:00",
+  friday: "09:00 - 14:00",
+  saturday: "Closed",
+  slotDuration: "30 mins",
+  maxSlotsPerHour: "2",
+  breakWindow: "13:00 - 14:00"
+};
+
+const DEFAULT_PROFILE = {
+  fullName: CURRENT_DOCTOR_NAME,
+  specialization: "Neurology",
+  experience: "12 years"
+};
+
 function readStorage(key, fallbackValue) {
   try {
     const raw = localStorage.getItem(key);
@@ -137,8 +163,8 @@ function normalizeAppointment(entry) {
 }
 
 function DoctorModule() {
-  const [activeTab, setActiveTab] = useState("appointments");
-  const [openGroup, setOpenGroup] = useState("clinical");
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [openGroup, setOpenGroup] = useState("overview");
   const [appointmentRows, setAppointmentRows] = useState(() => {
     const shared = readStorage(STORAGE_KEYS.appointments, SHARED_DEFAULT_APPOINTMENTS);
     return shared.map(normalizeAppointment);
@@ -154,18 +180,15 @@ function DoctorModule() {
     sendToPatient: true,
     sendToPharmacist: true
   });
+  const [editingPrescriptionId, setEditingPrescriptionId] = useState("");
   const [prescriptions, setPrescriptions] = useState(() =>
     readStorage(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS)
   );
-  const [availability, setAvailability] = useState(() =>
-    readStorage(STORAGE_KEYS.availability, {
-      monday: "09:00 - 17:00",
-      tuesday: "09:00 - 17:00",
-      wednesday: "09:00 - 15:00",
-      thursday: "10:00 - 18:00",
-      friday: "09:00 - 14:00"
-    })
-  );
+  const [availability, setAvailability] = useState(() => ({
+    ...DEFAULT_AVAILABILITY,
+    ...readStorage(STORAGE_KEYS.availability, DEFAULT_AVAILABILITY)
+  }));
+  const [profileForm, setProfileForm] = useState(DEFAULT_PROFILE);
 
   const activeTabLabel = useMemo(() => {
     const tab = TABS.flatMap((group) => group.items).find((entry) => entry.key === activeTab);
@@ -230,6 +253,11 @@ function DoctorModule() {
     setAvailability((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleProfileChange = (event) => {
+    const { name, value } = event.target;
+    setProfileForm((prev) => ({ ...prev, [name]: value }));
+  };
+
   const saveMedicalRecord = () => {
     const selectedPatient = PATIENTS.find((patient) => patient.id === recordForm.patientId);
     if (!selectedPatient) {
@@ -265,26 +293,34 @@ function DoctorModule() {
       return;
     }
 
-    setPrescriptions((prev) => [
-      {
-        id: `RX-${Date.now()}`,
-        patientName: selectedPatient.name,
-        medicine: prescriptionForm.medicine.trim(),
-        dosage: prescriptionForm.dosage.trim(),
-        duration: prescriptionForm.duration.trim(),
-        prescribedBy: CURRENT_DOCTOR_NAME,
-        refill: "Available",
-        status: "Active",
-        sentTo: [
-          prescriptionForm.sendToPatient ? "Patient" : null,
-          prescriptionForm.sendToPharmacist ? "Pharmacist" : null
-        ]
-          .filter(Boolean)
-          .join(" & "),
-        createdAt: new Date().toLocaleString()
-      },
-      ...prev
-    ]);
+    const payload = {
+      patientName: selectedPatient.name,
+      medicine: prescriptionForm.medicine.trim(),
+      dosage: prescriptionForm.dosage.trim(),
+      duration: prescriptionForm.duration.trim(),
+      prescribedBy: CURRENT_DOCTOR_NAME,
+      refill: "Available",
+      status: "Active",
+      sentTo: [
+        prescriptionForm.sendToPatient ? "Patient" : null,
+        prescriptionForm.sendToPharmacist ? "Pharmacist" : null
+      ]
+        .filter(Boolean)
+        .join(" & "),
+      createdAt: new Date().toLocaleString()
+    };
+
+    if (editingPrescriptionId) {
+      setPrescriptions((prev) =>
+        prev.map((entry) =>
+          entry.id === editingPrescriptionId
+            ? { ...entry, ...payload, createdAt: entry.createdAt }
+            : entry
+        )
+      );
+    } else {
+      setPrescriptions((prev) => [{ id: `RX-${Date.now()}`, ...payload }, ...prev]);
+    }
 
     setPrescriptionForm((prev) => ({
       ...prev,
@@ -292,6 +328,21 @@ function DoctorModule() {
       dosage: "",
       duration: ""
     }));
+    setEditingPrescriptionId("");
+  };
+
+  const editPrescription = (entry) => {
+    const selectedPatient = PATIENTS.find((patient) => patient.name === entry.patientName);
+    setEditingPrescriptionId(entry.id);
+    setPrescriptionForm({
+      patientId: selectedPatient ? selectedPatient.id : "P-01",
+      medicine: entry.medicine,
+      dosage: entry.dosage,
+      duration: entry.duration,
+      sendToPatient: entry.sentTo.includes("Patient"),
+      sendToPharmacist: entry.sentTo.includes("Pharmacist")
+    });
+    setActiveTab("prescriptions");
   };
 
   useEffect(() => {
@@ -328,7 +379,7 @@ function DoctorModule() {
                 onClick={() => setOpenGroup((prev) => (prev === group.key ? "" : group.key))}
               >
                 <span>{group.label}</span>
-                <span>{openGroup === group.key ? "?" : "?"}</span>
+                <span>{openGroup === group.key ? "▼" : "▶"}</span>
               </button>
 
               {openGroup === group.key ? (
@@ -340,7 +391,7 @@ function DoctorModule() {
                       className={activeTab === tab.key ? "active" : ""}
                       onClick={() => setActiveTab(tab.key)}
                     >
-                      � {tab.label}
+                      {tab.label}
                     </button>
                   ))}
                 </div>
@@ -378,6 +429,57 @@ function DoctorModule() {
             <span>Needs your attention</span>
           </article>
         </div>
+
+        {activeTab === "dashboard" ? (
+          <section className="erp-panel">
+            <h3>Dashboard / Overview</h3>
+            <p>Track total patients, appointment count, and daily activity summary.</p>
+
+            <div className="erp-stats-grid doctor-stats-3">
+              <article className="erp-stat-card">
+                <h4>Total Patients</h4>
+                <p>{PATIENTS.length}</p>
+                <span>Currently under your care</span>
+              </article>
+              <article className="erp-stat-card">
+                <h4>Appointments Count</h4>
+                <p>{doctorAppointments.length}</p>
+                <span>Upcoming and completed</span>
+              </article>
+              <article className="erp-stat-card">
+                <h4>Activity Summary</h4>
+                <p>{CONSULTATION_LOGS.length}</p>
+                <span>Recent consultations logged</span>
+              </article>
+            </div>
+
+            <div className="quick-section">
+              <h4>Recent Activity</h4>
+              <div className="table-wrap">
+                <table className="erp-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Patient</th>
+                      <th>Mode</th>
+                      <th>Summary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CONSULTATION_LOGS.map((entry) => (
+                      <tr key={`${entry.date}-${entry.patient}-dashboard`}>
+                        <td>{entry.date}</td>
+                        <td>{entry.patient}</td>
+                        <td>{entry.mode}</td>
+                        <td>{entry.note}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {activeTab === "appointments" ? (
           <section className="erp-panel">
@@ -463,8 +565,16 @@ function DoctorModule() {
               </article>
             </div>
 
+          </section>
+        ) : null}
+
+        {activeTab === "availability" ? (
+          <section className="erp-panel">
+            <h3>Availability Settings</h3>
+            <p>Set working hours and manage consultation slots.</p>
+
             <div className="quick-section">
-              <h4>Schedule / Availability</h4>
+              <h4>Set Working Hours</h4>
               <div className="erp-form-grid">
                 <label>
                   Monday
@@ -486,9 +596,32 @@ function DoctorModule() {
                   Friday
                   <input name="friday" value={availability.friday} onChange={handleAvailabilityChange} />
                 </label>
+                <label>
+                  Saturday
+                  <input name="saturday" value={availability.saturday} onChange={handleAvailabilityChange} />
+                </label>
               </div>
-              <button className="erp-primary-btn" type="button">Save Schedule</button>
             </div>
+
+            <div className="quick-section">
+              <h4>Manage Slots</h4>
+              <div className="erp-form-grid">
+                <label>
+                  Slot Duration
+                  <input name="slotDuration" value={availability.slotDuration} onChange={handleAvailabilityChange} />
+                </label>
+                <label>
+                  Max Slots Per Hour
+                  <input name="maxSlotsPerHour" value={availability.maxSlotsPerHour} onChange={handleAvailabilityChange} />
+                </label>
+                <label>
+                  Break Window
+                  <input name="breakWindow" value={availability.breakWindow} onChange={handleAvailabilityChange} />
+                </label>
+              </div>
+            </div>
+
+            <button className="erp-primary-btn" type="button">Save Availability Settings</button>
           </section>
         ) : null}
 
@@ -675,7 +808,7 @@ function DoctorModule() {
             </div>
 
             <button className="erp-primary-btn" type="button" onClick={createPrescription}>
-              Create and Send Prescription
+              {editingPrescriptionId ? "Save Prescription Changes" : "Create and Send Prescription"}
             </button>
 
             <div className="quick-section">
@@ -690,6 +823,7 @@ function DoctorModule() {
                       <th>Dosage</th>
                       <th>Duration</th>
                       <th>Sent To</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -702,11 +836,16 @@ function DoctorModule() {
                           <td>{entry.dosage}</td>
                           <td>{entry.duration}</td>
                           <td>{entry.sentTo || "Not selected"}</td>
+                          <td>
+                            <button type="button" onClick={() => editPrescription(entry)}>
+                              Edit
+                            </button>
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="6">No prescriptions saved yet.</td>
+                        <td colSpan="7">No prescriptions saved yet.</td>
                       </tr>
                     )}
                   </tbody>
@@ -782,35 +921,24 @@ function DoctorModule() {
 
         {activeTab === "profile" ? (
           <section className="erp-panel">
-            <h3>Profile Management</h3>
-            <p>Update specialization, experience, and availability timings.</p>
+            <h3>Profile</h3>
+            <p>View profile and edit specialization and experience details.</p>
             <div className="erp-form-grid">
               <label>
                 Full Name
-                <input value={CURRENT_DOCTOR_NAME} readOnly />
+                <input name="fullName" value={profileForm.fullName} onChange={handleProfileChange} readOnly />
               </label>
               <label>
                 Specialization
-                <input value="Neurology" readOnly />
+                <input
+                  name="specialization"
+                  value={profileForm.specialization}
+                  onChange={handleProfileChange}
+                />
               </label>
               <label>
                 Experience
-                <input value="12 years" readOnly />
-              </label>
-            </div>
-
-            <div className="erp-form-grid">
-              <label>
-                Monday Availability
-                <input name="monday" value={availability.monday} onChange={handleAvailabilityChange} />
-              </label>
-              <label>
-                Tuesday Availability
-                <input name="tuesday" value={availability.tuesday} onChange={handleAvailabilityChange} />
-              </label>
-              <label>
-                Wednesday Availability
-                <input name="wednesday" value={availability.wednesday} onChange={handleAvailabilityChange} />
+                <input name="experience" value={profileForm.experience} onChange={handleProfileChange} />
               </label>
             </div>
 

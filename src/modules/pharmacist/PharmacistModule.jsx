@@ -6,17 +6,34 @@ const MENU_GROUPS = [
     label: "Prescriptions",
     items: [
       { key: "view-prescriptions", label: "View Prescriptions" },
-      { key: "verification", label: "Prescription Verification" },
-      { key: "approved-prescriptions", label: "Approved Prescriptions" }
+      { key: "verify-prescription", label: "Verify Prescription" },
+      { key: "prescription-history", label: "Prescription History" },
+      { key: "prescription-details", label: "Prescription Details" }
     ]
   },
   {
-    key: "operations",
-    label: "Operations",
+    key: "order-management",
+    label: "Order Management",
     items: [
-      { key: "orders", label: "Order Management" },
-      { key: "dispensing", label: "Medicine Dispensing" },
-      { key: "inventory", label: "Inventory Management" }
+      { key: "view-orders", label: "View Orders" },
+      { key: "manage-order-status", label: "Accept / Reject & Update Status" }
+    ]
+  },
+  {
+    key: "medicine-dispensing",
+    label: "Medicine Dispensing",
+    items: [
+      { key: "prepare-medicines", label: "Prepare Medicines" },
+      { key: "dispatch-deliver", label: "Dispatch / Deliver" }
+    ]
+  },
+  {
+    key: "inventory-management",
+    label: "Inventory Management",
+    items: [
+      { key: "add-medicines", label: "Add Medicines" },
+      { key: "update-stock", label: "Update Stock" },
+      { key: "remove-expired", label: "Remove Expired Items" }
     ]
   },
   {
@@ -24,15 +41,19 @@ const MENU_GROUPS = [
     label: "Finance & Reports",
     items: [
       { key: "payment-verification", label: "Payment Verification" },
-      { key: "reports", label: "Reports & Tracking" }
+      { key: "transaction-history", label: "Transaction History" },
+      { key: "sales-reports", label: "Sales Reports" },
+      { key: "revenue-summary", label: "Revenue Summary" }
     ]
   },
   {
     key: "account",
     label: "Account",
     items: [
+      { key: "profile", label: "Profile" },
+      { key: "edit-profile", label: "Edit Profile" },
+      { key: "change-password", label: "Change Password" },
       { key: "notifications", label: "Notifications" },
-      { key: "profile", label: "Profile Management" }
     ]
   }
 ];
@@ -175,9 +196,18 @@ function PharmacistModule() {
 
   // Inventory form
   const [inventoryForm, setInventoryForm] = useState({ medicineId: "", quantity: "", action: "" });
+  const [addMedicineForm, setAddMedicineForm] = useState({
+    name: "",
+    category: "General",
+    stock: "",
+    minStock: "",
+    expiryDate: "",
+    price: ""
+  });
 
   // Payment verification
   const [paymentForm, setPaymentForm] = useState({ orderId: "", verificationNotes: "" });
+  const [passwordForm, setPasswordForm] = useState({ current: "", next: "", confirm: "" });
 
   // Profile
   const [profile, setProfile] = useState(() => {
@@ -319,6 +349,69 @@ function PharmacistModule() {
     alert("Payment verified!");
   };
 
+  const handleAddMedicine = () => {
+    if (!addMedicineForm.name.trim() || !addMedicineForm.stock || !addMedicineForm.expiryDate) {
+      alert("Please enter medicine name, stock, and expiry date");
+      return;
+    }
+
+    const stock = parseInt(addMedicineForm.stock, 10) || 0;
+    const minStock = parseInt(addMedicineForm.minStock, 10) || 0;
+    const price = parseFloat(addMedicineForm.price) || 0;
+
+    setInventory((prev) => [
+      {
+        id: `MED-${Date.now()}`,
+        name: addMedicineForm.name.trim(),
+        category: addMedicineForm.category,
+        stock,
+        minStock,
+        expiryDate: addMedicineForm.expiryDate,
+        status: stock <= minStock ? "Low Stock" : "In Stock",
+        price
+      },
+      ...prev
+    ]);
+
+    setAddMedicineForm({
+      name: "",
+      category: "General",
+      stock: "",
+      minStock: "",
+      expiryDate: "",
+      price: ""
+    });
+  };
+
+  const removeExpiredItems = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    let removedCount = 0;
+    setInventory((prev) => {
+      const filtered = prev.filter((item) => item.expiryDate >= today);
+      removedCount = prev.length - filtered.length;
+      return filtered;
+    });
+    alert(`${removedCount} expired item(s) removed.`);
+  };
+
+  const handlePasswordChange = () => {
+    if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
+      alert("Please complete all password fields");
+      return;
+    }
+    if (passwordForm.next !== passwordForm.confirm) {
+      alert("New passwords do not match");
+      return;
+    }
+    if (passwordForm.next.length < 6) {
+      alert("New password must be at least 6 characters");
+      return;
+    }
+
+    alert("Password changed successfully");
+    setPasswordForm({ current: "", next: "", confirm: "" });
+  };
+
   // Computed values
   const pendingPrescriptions = useMemo(() => {
     return prescriptions.filter((p) => p.sentTo.includes("Pharmacist") && p.status === "Active");
@@ -335,6 +428,13 @@ function PharmacistModule() {
   const pendingPayments = useMemo(() => {
     return orders.filter((o) => o.paymentStatus === "Pending");
   }, [orders]);
+
+  const salesReport = useMemo(() => {
+    const totalSales = transactions.reduce((sum, tx) => sum + tx.amount, 0);
+    const soldItems = transactions.length;
+    const avgOrderValue = soldItems ? totalSales / soldItems : 0;
+    return { totalSales, soldItems, avgOrderValue };
+  }, [transactions]);
 
   const stats = useMemo(
     () => ({
@@ -372,29 +472,22 @@ function PharmacistModule() {
           {MENU_GROUPS.map((group) => (
             <div key={group.key} className="erp-nav-group">
               <button
-                className="erp-group-header"
+                className="erp-group-btn"
+                type="button"
                 onClick={() => toggleGroup(group.key)}
-                style={{
-                  background: openGroup === group.key ? "#f0f4f8" : "transparent",
-                  color: openGroup === group.key ? "#0066cc" : "#333"
-                }}
               >
                 <span>{group.label}</span>
-                <span style={{ marginLeft: "auto" }}>{openGroup === group.key ? "−" : "+"}</span>
+                <span style={{ marginLeft: "auto" }}>{openGroup === group.key ? "▼" : "▶"}</span>
               </button>
 
               {openGroup === group.key && (
                 <div className="erp-group-items">
                   {group.items.map((item) => (
                     <button
+                      type="button"
                       key={item.key}
-                      className={`erp-nav-item ${activeMenu === item.key ? "active" : ""}`}
+                      className={activeMenu === item.key ? "active" : ""}
                       onClick={() => setActiveMenu(item.key)}
-                      style={{
-                        background: activeMenu === item.key ? "#e6f2ff" : "transparent",
-                        color: activeMenu === item.key ? "#0066cc" : "#333",
-                        borderLeft: activeMenu === item.key ? "3px solid #0066cc" : "3px solid transparent"
-                      }}
                     >
                       {item.label}
                     </button>
@@ -484,7 +577,7 @@ function PharmacistModule() {
             )}
 
             {/* PRESCRIPTION VERIFICATION */}
-            {activeMenu === "verification" && (
+            {activeMenu === "verify-prescription" && (
               <div>
                 <h3>Prescription Verification</h3>
                 <p style={{ color: "#666", marginBottom: "1rem" }}>Verify authenticity and availability of prescribed medicines</p>
@@ -593,10 +686,10 @@ function PharmacistModule() {
             )}
 
             {/* APPROVED PRESCRIPTIONS */}
-            {activeMenu === "approved-prescriptions" && (
+            {activeMenu === "prescription-history" && (
               <div>
-                <h3>Approved Prescriptions</h3>
-                <p style={{ color: "#666", marginBottom: "1rem" }}>Prescriptions verified and approval for dispensing</p>
+                <h3>Prescription History</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Prescriptions verified and approved for dispensing</p>
 
                 {approvedPrescriptions.length === 0 ? (
                   <p style={{ color: "#999" }}>No approved prescriptions yet</p>
@@ -634,10 +727,10 @@ function PharmacistModule() {
             )}
 
             {/* ORDER MANAGEMENT */}
-            {activeMenu === "orders" && (
+            {activeMenu === "view-orders" && (
               <div>
-                <h3>Order Management</h3>
-                <p style={{ color: "#666", marginBottom: "1rem" }}>Manage medicine orders from patients</p>
+                <h3>View Orders</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Review all medicine orders from patients</p>
 
                 <div style={{ marginBottom: "2rem" }}>
                   <h4>Pending Orders</h4>
@@ -676,6 +769,14 @@ function PharmacistModule() {
                     </div>
                   )}
                 </div>
+
+              </div>
+            )}
+
+            {activeMenu === "manage-order-status" && (
+              <div>
+                <h3>Accept / Reject & Update Status</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Accept or reject orders and update delivery status.</p>
 
                 <div style={{ background: "#f9f9f9", padding: "1rem", borderRadius: "6px" }}>
                   <h4>Order Action</h4>
@@ -738,7 +839,7 @@ function PharmacistModule() {
             )}
 
             {/* INVENTORY MANAGEMENT */}
-            {activeMenu === "inventory" && (
+            {(activeMenu === "update-stock" || activeMenu === "add-medicines" || activeMenu === "remove-expired") && (
               <div>
                 <h3>Inventory Management</h3>
                 <p style={{ color: "#666", marginBottom: "1rem" }}>Track and manage medicine stock levels</p>
@@ -784,8 +885,26 @@ function PharmacistModule() {
                   </table>
                 </div>
 
-                <div style={{ background: "#f9f9f9", padding: "1rem", borderRadius: "6px" }}>
-                  <h4>Update Stock Levels</h4>
+                {activeMenu === "add-medicines" && (
+                  <div style={{ background: "#f9f9f9", padding: "1rem", borderRadius: "6px", marginBottom: "1rem" }}>
+                    <h4>Add Medicines</h4>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "1rem" }}>
+                      <input placeholder="Medicine name" value={addMedicineForm.name} onChange={(e) => setAddMedicineForm({ ...addMedicineForm, name: e.target.value })} />
+                      <input placeholder="Category" value={addMedicineForm.category} onChange={(e) => setAddMedicineForm({ ...addMedicineForm, category: e.target.value })} />
+                      <input type="number" placeholder="Stock" value={addMedicineForm.stock} onChange={(e) => setAddMedicineForm({ ...addMedicineForm, stock: e.target.value })} />
+                      <input type="number" placeholder="Min Stock" value={addMedicineForm.minStock} onChange={(e) => setAddMedicineForm({ ...addMedicineForm, minStock: e.target.value })} />
+                      <input type="date" value={addMedicineForm.expiryDate} onChange={(e) => setAddMedicineForm({ ...addMedicineForm, expiryDate: e.target.value })} />
+                      <input type="number" step="0.01" placeholder="Price" value={addMedicineForm.price} onChange={(e) => setAddMedicineForm({ ...addMedicineForm, price: e.target.value })} />
+                    </div>
+                    <button onClick={handleAddMedicine} style={{ marginTop: "1rem", background: "#0066cc", color: "#fff", border: "none", padding: "0.75rem 1rem", borderRadius: "4px" }}>
+                      Add Medicine
+                    </button>
+                  </div>
+                )}
+
+                {activeMenu === "update-stock" && (
+                  <div style={{ background: "#f9f9f9", padding: "1rem", borderRadius: "6px" }}>
+                    <h4>Update Stock</h4>
                   <div style={{ marginBottom: "1rem" }}>
                     <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Select Medicine:</label>
                     <select
@@ -839,32 +958,43 @@ function PharmacistModule() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleInventoryUpdate}
-                    style={{
-                      background: "#667eea",
-                      color: "#fff",
-                      border: "none",
-                      padding: "0.75rem 1.5rem",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      fontWeight: "500"
-                    }}
-                  >
-                    Update Inventory
-                  </button>
-                </div>
+                    <button
+                      onClick={handleInventoryUpdate}
+                      style={{
+                        background: "#667eea",
+                        color: "#fff",
+                        border: "none",
+                        padding: "0.75rem 1.5rem",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                        fontWeight: "500"
+                      }}
+                    >
+                      Update Inventory
+                    </button>
+                  </div>
+                )}
+
+                {activeMenu === "remove-expired" && (
+                  <div style={{ background: "#fff3e0", padding: "1rem", borderRadius: "6px" }}>
+                    <h4>Remove Expired Items</h4>
+                    <p style={{ color: "#666" }}>Clean up medicines whose expiry date has passed.</p>
+                    <button onClick={removeExpiredItems} style={{ background: "#e65100", color: "#fff", border: "none", padding: "0.75rem 1rem", borderRadius: "4px" }}>
+                      Remove Expired Medicines
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
             {/* MEDICINE DISPENSING */}
-            {activeMenu === "dispensing" && (
+            {(activeMenu === "prepare-medicines" || activeMenu === "dispatch-deliver") && (
               <div>
                 <h3>Medicine Dispensing</h3>
                 <p style={{ color: "#666", marginBottom: "1rem" }}>Prepare and dispense medicines to patients</p>
 
                 <div style={{ background: "#f9f9f9", padding: "1rem", borderRadius: "6px", marginBottom: "2rem" }}>
-                  <h4>Dispense Medicine</h4>
+                  <h4>{activeMenu === "prepare-medicines" ? "Prepare Medicines" : "Dispatch / Deliver"}</h4>
                   <div style={{ marginBottom: "1rem" }}>
                     <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Select Approved Order:</label>
                     <select
@@ -905,7 +1035,7 @@ function PharmacistModule() {
                       fontWeight: "500"
                     }}
                   >
-                    Mark as Dispensed
+                    {activeMenu === "prepare-medicines" ? "Prepare Medicines" : "Dispatch / Deliver"}
                   </button>
                 </div>
 
@@ -1011,9 +1141,9 @@ function PharmacistModule() {
             )}
 
             {/* REPORTS & TRACKING */}
-            {activeMenu === "reports" && (
+            {activeMenu === "transaction-history" && (
               <div>
-                <h3>Reports & Tracking</h3>
+                <h3>Transaction History</h3>
                 <p style={{ color: "#666", marginBottom: "1rem" }}>View transaction history and track dispensed medicines</p>
 
                 <div style={{ overflowX: "auto" }}>
@@ -1047,6 +1177,63 @@ function PharmacistModule() {
                               {tx.status}
                             </span>
                           </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {activeMenu === "sales-reports" && (
+              <div>
+                <h3>Sales Reports</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Overview of medicines sold and average order value.</p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "1rem" }}>
+                  <div className="stat-card"><div className="stat-label">Items Sold</div><div className="stat-value">{salesReport.soldItems}</div></div>
+                  <div className="stat-card"><div className="stat-label">Average Order Value</div><div className="stat-value">${salesReport.avgOrderValue.toFixed(2)}</div></div>
+                  <div className="stat-card"><div className="stat-label">Low Stock Count</div><div className="stat-value">{lowStockItems.length}</div></div>
+                </div>
+              </div>
+            )}
+
+            {activeMenu === "revenue-summary" && (
+              <div>
+                <h3>Revenue Summary</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Total revenue from dispensed orders.</p>
+                <div className="stat-card" style={{ maxWidth: "420px" }}>
+                  <div className="stat-label">Total Revenue</div>
+                  <div className="stat-value">${salesReport.totalSales.toFixed(2)}</div>
+                  <div className="stat-subtitle">Based on transaction history</div>
+                </div>
+              </div>
+            )}
+
+            {activeMenu === "prescription-details" && (
+              <div>
+                <h3>Prescription Details</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Detailed view of prescriptions from doctors.</p>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "2px solid #ddd" }}>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Rx ID</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Patient</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Medicine</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Dosage & Duration</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Doctor</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {prescriptions.map((p) => (
+                        <tr key={p.id} style={{ borderBottom: "1px solid #eee" }}>
+                          <td style={{ padding: "0.75rem" }}>{p.id}</td>
+                          <td style={{ padding: "0.75rem" }}>{p.patientName}</td>
+                          <td style={{ padding: "0.75rem" }}>{p.medicine}</td>
+                          <td style={{ padding: "0.75rem" }}>{p.dosage} / {p.duration}</td>
+                          <td style={{ padding: "0.75rem" }}>{p.prescribedBy}</td>
+                          <td style={{ padding: "0.75rem" }}>{p.status}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1091,8 +1278,8 @@ function PharmacistModule() {
             {/* PROFILE MANAGEMENT */}
             {activeMenu === "profile" && (
               <div>
-                <h3>Profile Management</h3>
-                <p style={{ color: "#666", marginBottom: "1rem" }}>Manage pharmacist profile information</p>
+                <h3>Profile</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>View pharmacist profile information</p>
 
                 <div style={{ background: "#f9f9f9", padding: "1.5rem", borderRadius: "6px", maxWidth: "500px" }}>
                   <div style={{ marginBottom: "1rem" }}>
@@ -1129,6 +1316,37 @@ function PharmacistModule() {
                     }}
                   >
                     Edit Profile
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeMenu === "edit-profile" && (
+              <div>
+                <h3>Edit Profile</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Update pharmacist account details.</p>
+                <div style={{ maxWidth: "560px", display: "grid", gap: "0.75rem" }}>
+                  <input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} placeholder="Name" />
+                  <input value={profile.email} onChange={(e) => setProfile({ ...profile, email: e.target.value })} placeholder="Email" />
+                  <input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} placeholder="Phone" />
+                  <input value={profile.facility} onChange={(e) => setProfile({ ...profile, facility: e.target.value })} placeholder="Facility" />
+                  <button style={{ background: "#0066cc", color: "#fff", border: "none", padding: "0.75rem 1rem", borderRadius: "4px", width: "fit-content" }}>
+                    Save Profile
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeMenu === "change-password" && (
+              <div>
+                <h3>Change Password</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Update your account password securely.</p>
+                <div style={{ maxWidth: "520px", display: "grid", gap: "0.75rem" }}>
+                  <input type="password" placeholder="Current password" value={passwordForm.current} onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })} />
+                  <input type="password" placeholder="New password" value={passwordForm.next} onChange={(e) => setPasswordForm({ ...passwordForm, next: e.target.value })} />
+                  <input type="password" placeholder="Confirm new password" value={passwordForm.confirm} onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })} />
+                  <button onClick={handlePasswordChange} style={{ background: "#4CAF50", color: "#fff", border: "none", padding: "0.75rem 1rem", borderRadius: "4px", width: "fit-content" }}>
+                    Change Password
                   </button>
                 </div>
               </div>

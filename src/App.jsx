@@ -22,8 +22,8 @@ function App() {
 
   // Forgot Password States
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [forgotStep, setForgotStep] = useState("username"); // username, otp, newpassword
-  const [forgotUsername, setForgotUsername] = useState("");
+  const [forgotStep, setForgotStep] = useState("phone"); // phone, otp, newpassword
+  const [forgotPhone, setForgotPhone] = useState("");
   const [detectedRole, setDetectedRole] = useState("");
   const [generatedOtp, setGeneratedOtp] = useState("");
   const [registeredPhone, setRegisteredPhone] = useState("");
@@ -99,31 +99,31 @@ function App() {
   const handleForgotPasswordClick = (e) => {
     e.preventDefault();
     setShowForgotPassword(true);
-    setForgotStep("username");
+    setForgotStep("phone");
     setForgotError("");
     setForgotSuccess("");
   };
 
-  const handleForgotUsernameSubmit = (e) => {
+  const handleForgotPhoneSubmit = (e) => {
     e.preventDefault();
     setForgotError("");
 
-    if (!forgotUsername.trim()) {
-      setForgotError("Please enter your username");
+    if (!forgotPhone.trim()) {
+      setForgotError("Please enter your registered phone number");
       return;
     }
 
-    // Auto-detect role from username
+    // Auto-detect role from phone number
     let matchedRole = null;
     for (const [roleKey, credentials] of Object.entries(DEMO_CREDENTIALS)) {
-      if (forgotUsername.trim() === credentials.username) {
+      if (forgotPhone.trim() === credentials.phone) {
         matchedRole = roleKey;
         break;
       }
     }
 
     if (!matchedRole) {
-      setForgotError("Username not found in the system");
+      setForgotError("Phone number not found in registered accounts");
       return;
     }
 
@@ -177,8 +177,8 @@ function App() {
     setForgotSuccess("Password reset successful! Redirecting to login...");
     setTimeout(() => {
       setShowForgotPassword(false);
-      setForgotStep("username");
-      setForgotUsername("");
+      setForgotStep("phone");
+      setForgotPhone("");
       setDetectedRole("");
       setNewPassword("");
       setConfirmPassword("");
@@ -189,8 +189,8 @@ function App() {
 
   const handleBackToLogin = () => {
     setShowForgotPassword(false);
-    setForgotStep("username");
-    setForgotUsername("");
+    setForgotStep("phone");
+    setForgotPhone("");
     setDetectedRole("");
     setOtpInput("");
     setNewPassword("");
@@ -231,16 +231,16 @@ function App() {
           <h1>Reset Password</h1>
           <p className="subtitle">Recover your account access</p>
 
-          {/* STEP 1: Enter Username */}
-          {forgotStep === "username" && (
-            <form onSubmit={handleForgotUsernameSubmit}>
-              <label htmlFor="forgot-username">Username</label>
+          {/* STEP 1: Enter Registered Phone */}
+          {forgotStep === "phone" && (
+            <form onSubmit={handleForgotPhoneSubmit}>
+              <label htmlFor="forgot-phone">Registered Phone Number</label>
               <input
-                id="forgot-username"
-                type="text"
-                placeholder="Enter your username"
-                value={forgotUsername}
-                onChange={(e) => setForgotUsername(e.target.value)}
+                id="forgot-phone"
+                type="tel"
+                placeholder="Enter your registered phone number"
+                value={forgotPhone}
+                onChange={(e) => setForgotPhone(e.target.value)}
               />
 
               {forgotError ? <p className="form-error">{forgotError}</p> : null}

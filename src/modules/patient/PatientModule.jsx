@@ -16,16 +16,28 @@ const MENU_GROUPS = [
     label: "Records & Finance",
     items: [
       { key: "medical-records", label: "Medical Records" },
-      { key: "prescription-medicines", label: "Prescription & Medicines" },
-      { key: "payment-management", label: "Payment Management" }
+      { key: "prescriptions", label: "Prescriptions" },
+      { key: "payment-history", label: "Payment History" },
+      { key: "billing", label: "Billing" }
     ]
   },
   {
     key: "account",
     label: "Account",
     items: [
-      { key: "notifications", label: "Notifications" },
-      { key: "profile-management", label: "Profile Management" }
+      { key: "profile", label: "Profile" },
+      { key: "edit-profile", label: "Edit Profile" },
+      { key: "change-password", label: "Change Password" },
+      { key: "notifications", label: "Notifications" }
+    ]
+  },
+  {
+    key: "support",
+    label: "Support",
+    items: [
+      { key: "help-faq", label: "Help / FAQ" },
+      { key: "contact-support", label: "Contact Support" },
+      { key: "report-issue", label: "Report Issue" }
     ]
   }
 ];
@@ -177,6 +189,11 @@ function PatientModule() {
       allergyInfo: "No known drug allergies"
     })
   );
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
 
   const currentPatientName = profile.name.trim() || "John Doe";
 
@@ -243,29 +260,25 @@ function PatientModule() {
         key: "appointment-booking",
         label: "Upcoming Appointments",
         value: upcomingAppointments.length,
-        detail: "Next: March 25, 2026",
-        iconClass: "blue"
+        detail: "Next: March 25, 2026"
       },
       {
-        key: "prescription-medicines",
+        key: "prescriptions",
         label: "Active Prescriptions",
         value: activePrescriptions.length,
-        detail: "1 refill needed",
-        iconClass: "cyan"
+        detail: "1 refill needed"
       },
       {
         key: "medical-records",
         label: "Medical Records",
         value: MEDICAL_HISTORY.length,
-        detail: "Last updated today",
-        iconClass: "green"
+        detail: "Last updated today"
       },
       {
         key: "payment-management",
         label: "Health Score",
         value: "85%",
-        detail: "Good condition",
-        iconClass: "violet"
+        detail: "Good condition"
       }
     ],
     [upcomingAppointments.length, activePrescriptions.length]
@@ -417,11 +430,6 @@ function PatientModule() {
                 className="patient-home-card"
                 onClick={() => setActiveMenu(card.key)}
               >
-                <div className="patient-card-icon-wrapper">
-                  <span className={`patient-home-icon-small ${card.iconClass}`} aria-hidden="true">
-                    ?
-                  </span>
-                </div>
                 <div className="patient-card-content">
                   <p className="patient-card-label">{card.label}</p>
                   <p className="patient-card-value">{card.value}</p>

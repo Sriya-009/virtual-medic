@@ -7,10 +7,19 @@ const MENU_GROUPS = [
     mainMenu: "doctor-search",
     items: [
       {
-        key: "doctor-search-by",
-        label: "Search doctors by",
+        key: "doctor-search-specialization",
+        label: "Specialization",
+        targetMenu: "doctor-search"
+      },
+      {
+        key: "doctor-search-name",
+        label: "Name",
+        targetMenu: "doctor-search"
+      },
+      {
+        key: "doctor-search-availability",
+        label: "Availability",
         targetMenu: "doctor-search",
-        children: ["Specialization", "Name", "Availability"]
       },
       {
         key: "doctor-profiles",
@@ -71,15 +80,24 @@ const MENU_GROUPS = [
     mainMenu: "billing",
     items: [
       {
-        key: "make-payments",
-        label: "Make payments for",
+        key: "payment-consultation",
+        label: "Consultation",
         targetMenu: "billing",
-        children: ["Consultation", "Medicines"]
+      },
+      {
+        key: "payment-medicines",
+        label: "Medicines",
+        targetMenu: "billing"
       },
       {
         key: "view-payment-history",
         label: "View payment history",
         targetMenu: "payment-history"
+      },
+      {
+        key: "payment-status",
+        label: "Payment status",
+        targetMenu: "billing"
       }
     ]
   },
@@ -89,10 +107,19 @@ const MENU_GROUPS = [
     mainMenu: "notifications",
     items: [
       {
-        key: "alerts",
+        key: "alerts-parent",
         label: "Get alerts for",
+        targetMenu: "notifications"
+      },
+      {
+        key: "alert-appointment-confirmation",
+        label: "Appointment confirmation",
+        targetMenu: "notifications"
+      },
+      {
+        key: "alert-prescription-updates",
+        label: "Prescription updates",
         targetMenu: "notifications",
-        children: ["Appointment confirmation", "Prescription updates", "Payment status"]
       }
     ]
   },
@@ -104,21 +131,8 @@ const MENU_GROUPS = [
       {
         key: "update-details",
         label: "Update personal details",
-        targetMenu: "edit-profile",
-        children: ["Name", "Contact info", "Medical info"]
-      },
-      { key: "view-profile", label: "View profile", targetMenu: "profile" },
-      { key: "change-password", label: "Change Password", targetMenu: "change-password" }
-    ]
-  },
-  {
-    key: "support",
-    label: "Support",
-    mainMenu: "help-faq",
-    items: [
-      { key: "help-faq", label: "Help / FAQ", targetMenu: "help-faq" },
-      { key: "contact-support", label: "Contact Support", targetMenu: "contact-support" },
-      { key: "report-issue", label: "Report Issue", targetMenu: "report-issue" }
+        targetMenu: "edit-profile"
+      }
     ]
   }
 ];
@@ -239,7 +253,7 @@ function normalizeAppointment(entry) {
 }
 
 function PatientModule({ currentUsername = "patient" }) {
-  const [activeMenu, setActiveMenu] = useState("home");
+  const [activeMenu, setActiveMenu] = useState("doctor-search");
   const [activeSubNavKey, setActiveSubNavKey] = useState("");
   const [openGroups, setOpenGroups] = useState({
     "doctor-search-main": true,
@@ -249,11 +263,10 @@ function PatientModule({ currentUsername = "patient" }) {
     "prescription-main": true,
     "payment-management-main": true,
     "notifications-main": true,
-    "profile-management-main": true,
-    support: true
+    "profile-management-main": true
   });
   const [uiNotice, setUiNotice] = useState("");
-  const [doctorSearch, setDoctorSearch] = useState({ text: "", specialization: "All", availability: "All" });
+  const [doctorSearch, setDoctorSearch] = useState({ name: "", specialization: "All", availability: "All" });
 
   const [appointments, setAppointments] = useState(() =>
     getStored(STORAGE_KEYS.appointments, SHARED_DEFAULT_APPOINTMENTS).map(normalizeAppointment)
@@ -324,12 +337,11 @@ function PatientModule({ currentUsername = "patient" }) {
   }, [activeMenu, activeSubNavKey]);
 
   const filteredDoctors = useMemo(() => {
-    const query = doctorSearch.text.trim().toLowerCase();
+    const query = doctorSearch.name.trim().toLowerCase();
     return DOCTORS.filter((doctor) => {
       const byText =
         !query ||
-        doctor.name.toLowerCase().includes(query) ||
-        doctor.specialization.toLowerCase().includes(query);
+        doctor.name.toLowerCase().includes(query);
       const bySpecialization =
         doctorSearch.specialization === "All" || doctor.specialization === doctorSearch.specialization;
       const byAvailability =
@@ -709,12 +721,12 @@ function PatientModule({ currentUsername = "patient" }) {
 
           <div className="erp-form-grid">
             <label>
-              Name / Specialization
+              Name
               <input
-                name="text"
-                value={doctorSearch.text}
+                name="name"
+                value={doctorSearch.name}
                 onChange={handleDoctorSearch}
-                placeholder="Search doctor"
+                placeholder="Search by doctor name"
               />
             </label>
             <label>
@@ -1002,8 +1014,8 @@ function PatientModule({ currentUsername = "patient" }) {
     if (activeMenu === "billing") {
       return (
         <section className="erp-panel">
-          <h3>Billing</h3>
-          <p>View invoices, pending bills, and complete payments.</p>
+          <h3>Payment Management</h3>
+          <p>Make payments for consultation and medicines, and track payment status.</p>
 
           <div className="quick-section">
             <h4>Billing Summary</h4>

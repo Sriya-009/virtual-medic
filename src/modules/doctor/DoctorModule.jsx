@@ -504,11 +504,6 @@ function DoctorModule({ currentUsername = "doctor" }) {
       <aside className="doctor-left-panel">
         <h2>Doctor Portal</h2>
         <p>ERP Navigation</p>
-        <div className="role-card">
-          <strong>Role: Doctor</strong>
-          <span>User: {currentUsername}</span>
-          <span>Access level: Clinical operations</span>
-        </div>
         <nav className="erp-side-nav doctor-erp-side-nav">
           {TABS.map((group) => (
             <div key={group.key} className="erp-nav-group doctor-erp-nav-group">

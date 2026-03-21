@@ -1001,11 +1001,6 @@ function AdminModule({ currentUsername = "admin" }) {
       <aside className="admin-left-panel">
         <h2>Admin Portal</h2>
         <p>ERP Navigation</p>
-        <div className="role-card">
-          <strong>Role: Admin</strong>
-          <span>User: {currentUsername}</span>
-          <span>Access level: Full control</span>
-        </div>
         <nav className="erp-side-nav admin-erp-side-nav">
           {MENU_GROUPS.map((group) => (
             <div key={group.key} className="erp-nav-group admin-erp-nav-group">

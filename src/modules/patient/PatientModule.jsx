@@ -1113,11 +1113,6 @@ function PatientModule({ currentUsername = "patient" }) {
       <aside className="patient-left-panel">
         <h2>Patient Portal</h2>
         <p>ERP Navigation</p>
-        <div className="role-card">
-          <strong>Role: Patient</strong>
-          <span>User: {currentUsername}</span>
-          <span>Access level: Care and appointments</span>
-        </div>
 
         <nav className="erp-side-nav patient-erp-side-nav">
           {MENU_GROUPS.map((group) => (

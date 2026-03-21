@@ -523,14 +523,6 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
           {uiNotice ? <p className="pharmacist-notice">{uiNotice}</p> : null}
 
           <nav className="erp-side-nav pharmacist-erp-side-nav">
-          {/* Role Card */}
-          <div className="role-card">
-            <div style={{ fontSize: "12px", color: "#666" }}>Role</div>
-            <div style={{ fontSize: "18px", fontWeight: "bold", color: "#0066cc" }}>Pharmacist</div>
-            <div style={{ fontSize: "12px", color: "#666" }}>User: {currentUsername}</div>
-            <div style={{ fontSize: "11px", color: "#666" }}>Pharmacy Management</div>
-          </div>
-
           {/* Navigation Groups */}
           {MENU_GROUPS.map((group) => (
             <div key={group.key} className="erp-nav-group pharmacist-erp-nav-group">

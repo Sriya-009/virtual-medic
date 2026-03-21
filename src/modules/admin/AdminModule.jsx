@@ -1,13 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 
-const MENU_ITEMS = [
-  { key: "overview", label: "Admin Dashboard" },
-  { key: "system-control", label: "System Control" },
-  { key: "access-permissions", label: "Access & Permissions" },
-  { key: "data-management", label: "Data Management" },
-  { key: "security-management", label: "Security Management" },
-  { key: "monitoring-reports", label: "Monitoring & Reports" },
-  { key: "issue-handling", label: "Issue Handling" }
+const MENU_GROUPS = [
+  {
+    key: "administration",
+    label: "Administration",
+    items: [
+      { key: "overview", label: "Admin Dashboard" },
+      { key: "system-control", label: "System Control" },
+      { key: "access-permissions", label: "Access & Permissions" },
+      { key: "data-management", label: "Data Management" }
+    ]
+  },
+  {
+    key: "governance",
+    label: "Governance",
+    items: [
+      { key: "security-management", label: "Security Management" },
+      { key: "monitoring-reports", label: "Monitoring & Reports" },
+      { key: "issue-handling", label: "Issue Handling" }
+    ]
+  }
 ];
 
 const PERMISSION_ROWS = [
@@ -69,6 +81,7 @@ const ALL_USERS = [
 
 function AdminModule() {
   const [activeMenu, setActiveMenu] = useState("overview");
+  const [openGroup, setOpenGroup] = useState("administration");
   const [userSearch, setUserSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [users, setUsers] = useState(ALL_USERS);
@@ -83,7 +96,7 @@ function AdminModule() {
   });
 
   const menuTitle = useMemo(() => {
-    const item = MENU_ITEMS.find((entry) => entry.key === activeMenu);
+    const item = MENU_GROUPS.flatMap((group) => group.items).find((entry) => entry.key === activeMenu);
     return item ? item.label : "Admin Dashboard";
   }, [activeMenu]);
 
@@ -497,16 +510,36 @@ function AdminModule() {
       <aside className="admin-left-panel">
         <h2>Admin Portal</h2>
         <p>ERP Navigation</p>
-        <nav>
-          {MENU_ITEMS.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={activeMenu === item.key ? "active" : ""}
-              onClick={() => setActiveMenu(item.key)}
-            >
-              {item.label}
-            </button>
+        <div className="role-card">
+          <strong>Role: Admin</strong>
+          <span>Access level: Full control</span>
+        </div>
+        <nav className="erp-side-nav">
+          {MENU_GROUPS.map((group) => (
+            <div key={group.key} className="erp-nav-group">
+              <button
+                type="button"
+                className="erp-group-btn"
+                onClick={() => setOpenGroup((prev) => (prev === group.key ? "" : group.key))}
+              >
+                <span>{group.label}</span>
+                <span>{openGroup === group.key ? "▾" : "▸"}</span>
+              </button>
+              {openGroup === group.key ? (
+                <div className="erp-group-items">
+                  {group.items.map((item) => (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className={activeMenu === item.key ? "active" : ""}
+                      onClick={() => setActiveMenu(item.key)}
+                    >
+                      » {item.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           ))}
         </nav>
       </aside>

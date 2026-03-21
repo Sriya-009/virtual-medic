@@ -1,22 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 
 const TABS = [
-  { key: "appointments", label: "Appointment Management" },
-  { key: "interaction", label: "Patient Interaction" },
-  { key: "records", label: "Medical Records" },
-  { key: "prescriptions", label: "Prescription Management" },
-  { key: "reports", label: "Reports & Tracking" },
-  { key: "notifications", label: "Notifications" },
-  { key: "profile", label: "Profile Management" }
+  {
+    key: "clinical",
+    label: "Clinical Operations",
+    items: [
+      { key: "appointments", label: "Appointment Management" },
+      { key: "interaction", label: "Patient Interaction" },
+      { key: "records", label: "Medical Records" },
+      { key: "prescriptions", label: "Prescription Management" }
+    ]
+  },
+  {
+    key: "analytics",
+    label: "Insights & Profile",
+    items: [
+      { key: "reports", label: "Reports & Tracking" },
+      { key: "notifications", label: "Notifications" },
+      { key: "profile", label: "Profile Management" }
+    ]
+  }
 ];
 
-const APPOINTMENTS = [
-  { id: "A-1001", time: "09:00 AM", patient: "John Doe", type: "Follow-up", status: "Upcoming" },
-  { id: "A-1002", time: "10:30 AM", patient: "Jane Smith", type: "Consultation", status: "Requested" },
-  { id: "A-1003", time: "11:45 AM", patient: "Robert Johnson", type: "Check-up", status: "Completed" },
-  { id: "A-1004", time: "02:30 PM", patient: "Emily Davis", type: "Follow-up", status: "Upcoming" },
-  { id: "A-1005", time: "04:00 PM", patient: "Mia Clark", type: "Consultation", status: "Requested" }
-];
+const CURRENT_DOCTOR_NAME = "Dr. Michael Chen";
 
 const PATIENTS = [
   { id: "P-01", name: "John Doe", age: 45, history: "Hypertension", lastVisit: "2026-03-15" },
@@ -36,10 +42,70 @@ const NOTIFICATIONS = [
   "Prescription delivered to pharmacist for Jane Smith"
 ];
 
+const SHARED_DEFAULT_APPOINTMENTS = [
+  {
+    id: "AP-101",
+    doctorName: "Dr. Sarah Johnson",
+    patientName: "John Doe",
+    specialization: "Cardiology",
+    date: "2026-03-25",
+    time: "10:00",
+    type: "Follow-up",
+    status: "Confirmed"
+  },
+  {
+    id: "AP-102",
+    doctorName: "Dr. Michael Chen",
+    patientName: "John Doe",
+    specialization: "Neurology",
+    date: "2026-03-28",
+    time: "14:30",
+    type: "Consultation",
+    status: "Requested"
+  },
+  {
+    id: "AP-103",
+    doctorName: "Dr. Michael Chen",
+    patientName: "Jane Smith",
+    specialization: "Neurology",
+    date: "2026-03-20",
+    time: "11:45",
+    type: "Check-up",
+    status: "Completed"
+  }
+];
+
+const SHARED_DEFAULT_PRESCRIPTIONS = [
+  {
+    id: "RX-301",
+    patientName: "John Doe",
+    medicine: "Lisinopril 10mg",
+    dosage: "Once daily",
+    duration: "30 days",
+    prescribedBy: "Dr. Sarah Johnson",
+    refill: "Needed",
+    status: "Active",
+    sentTo: "Patient",
+    createdAt: "2026-03-15 10:30"
+  },
+  {
+    id: "RX-302",
+    patientName: "John Doe",
+    medicine: "Metformin 500mg",
+    dosage: "Twice daily",
+    duration: "60 days",
+    prescribedBy: "Dr. Michael Chen",
+    refill: "Available",
+    status: "Active",
+    sentTo: "Patient & Pharmacist",
+    createdAt: "2026-03-18 09:20"
+  }
+];
+
 const STORAGE_KEYS = {
-  appointments: "medico.doctor.appointments",
+  appointments: "medico.shared.appointments",
   records: "medico.doctor.records",
-  prescriptions: "medico.doctor.prescriptions",
+  prescriptions: "medico.shared.prescriptions",
   availability: "medico.doctor.availability"
 };
 
@@ -57,11 +123,26 @@ function readStorage(key, fallbackValue) {
   }
 }
 
+function normalizeAppointment(entry) {
+  return {
+    id: entry.id || `AP-${Date.now()}`,
+    doctorName: entry.doctorName || CURRENT_DOCTOR_NAME,
+    patientName: entry.patientName || entry.patient || "John Doe",
+    specialization: entry.specialization || "General",
+    date: entry.date || "2026-03-25",
+    time: entry.time || "10:00",
+    type: entry.type || "Consultation",
+    status: entry.status === "Upcoming" ? "Confirmed" : entry.status || "Requested"
+  };
+}
+
 function DoctorModule() {
   const [activeTab, setActiveTab] = useState("appointments");
-  const [appointmentRows, setAppointmentRows] = useState(() =>
-    readStorage(STORAGE_KEYS.appointments, APPOINTMENTS)
-  );
+  const [openGroup, setOpenGroup] = useState("clinical");
+  const [appointmentRows, setAppointmentRows] = useState(() => {
+    const shared = readStorage(STORAGE_KEYS.appointments, SHARED_DEFAULT_APPOINTMENTS);
+    return shared.map(normalizeAppointment);
+  });
   const [patientSearch, setPatientSearch] = useState("");
   const [recordForm, setRecordForm] = useState({ patientId: "P-01", diagnosis: "", symptoms: "", notes: "" });
   const [medicalRecords, setMedicalRecords] = useState(() => readStorage(STORAGE_KEYS.records, []));
@@ -74,7 +155,7 @@ function DoctorModule() {
     sendToPharmacist: true
   });
   const [prescriptions, setPrescriptions] = useState(() =>
-    readStorage(STORAGE_KEYS.prescriptions, [])
+    readStorage(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS)
   );
   const [availability, setAvailability] = useState(() =>
     readStorage(STORAGE_KEYS.availability, {
@@ -86,13 +167,28 @@ function DoctorModule() {
     })
   );
 
-  const upcomingAppointments = useMemo(
-    () => appointmentRows.filter((entry) => entry.status === "Upcoming" || entry.status === "Requested"),
+  const activeTabLabel = useMemo(() => {
+    const tab = TABS.flatMap((group) => group.items).find((entry) => entry.key === activeTab);
+    return tab ? tab.label : "Doctor Dashboard";
+  }, [activeTab]);
+
+  const doctorAppointments = useMemo(
+    () => appointmentRows.filter((entry) => entry.doctorName === CURRENT_DOCTOR_NAME),
     [appointmentRows]
   );
+
+  const upcomingAppointments = useMemo(
+    () => doctorAppointments.filter((entry) => ["Confirmed", "Requested"].includes(entry.status)),
+    [doctorAppointments]
+  );
   const pastAppointments = useMemo(
-    () => appointmentRows.filter((entry) => entry.status === "Completed" || entry.status === "Rejected"),
-    [appointmentRows]
+    () => doctorAppointments.filter((entry) => ["Completed", "Rejected", "Cancelled"].includes(entry.status)),
+    [doctorAppointments]
+  );
+
+  const doctorPrescriptions = useMemo(
+    () => prescriptions.filter((entry) => entry.prescribedBy === CURRENT_DOCTOR_NAME),
+    [prescriptions]
   );
 
   const filteredPatients = useMemo(() => {
@@ -172,10 +268,13 @@ function DoctorModule() {
     setPrescriptions((prev) => [
       {
         id: `RX-${Date.now()}`,
-        patient: selectedPatient.name,
+        patientName: selectedPatient.name,
         medicine: prescriptionForm.medicine.trim(),
         dosage: prescriptionForm.dosage.trim(),
         duration: prescriptionForm.duration.trim(),
+        prescribedBy: CURRENT_DOCTOR_NAME,
+        refill: "Available",
+        status: "Active",
         sentTo: [
           prescriptionForm.sendToPatient ? "Patient" : null,
           prescriptionForm.sendToPharmacist ? "Pharmacist" : null
@@ -212,482 +311,513 @@ function DoctorModule() {
   }, [availability]);
 
   return (
-    <section className="doctor-dashboard">
-      <header className="doctor-header">
-        <h2>Doctor Dashboard</h2>
-        <p>Manage appointments, patient care, records, prescriptions, and communication.</p>
-      </header>
+    <section className="doctor-erp-shell">
+      <aside className="doctor-left-panel">
+        <h2>Doctor Portal</h2>
+        <p>ERP Navigation</p>
+        <div className="role-card">
+          <strong>Role: Doctor</strong>
+          <span>Access level: Clinical operations</span>
+        </div>
+        <nav className="erp-side-nav">
+          {TABS.map((group) => (
+            <div key={group.key} className="erp-nav-group">
+              <button
+                type="button"
+                className="erp-group-btn"
+                onClick={() => setOpenGroup((prev) => (prev === group.key ? "" : group.key))}
+              >
+                <span>{group.label}</span>
+                <span>{openGroup === group.key ? "?" : "?"}</span>
+              </button>
 
-      <div className="erp-stats-grid doctor-stats">
-        <article className="erp-stat-card">
-          <h4>Today's Appointments</h4>
-          <p>{upcomingAppointments.length}</p>
-          <span>Including pending requests</span>
-        </article>
-        <article className="erp-stat-card">
-          <h4>Total Patients</h4>
-          <p>{PATIENTS.length}</p>
-          <span>Active under care</span>
-        </article>
-        <article className="erp-stat-card">
-          <h4>Consultations This Week</h4>
-          <p>18</p>
-          <span>Video and chat combined</span>
-        </article>
-        <article className="erp-stat-card">
-          <h4>Pending Notifications</h4>
-          <p>{NOTIFICATIONS.length}</p>
-          <span>Needs your attention</span>
-        </article>
-      </div>
+              {openGroup === group.key ? (
+                <div className="erp-group-items">
+                  {group.items.map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      className={activeTab === tab.key ? "active" : ""}
+                      onClick={() => setActiveTab(tab.key)}
+                    >
+                      » {tab.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </nav>
+      </aside>
 
-      <div className="doctor-tabs">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            className={activeTab === tab.key ? "active" : ""}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <div className="doctor-main-area">
+        <header className="doctor-header">
+          <h2>{activeTabLabel}</h2>
+          <p>Manage appointments, patient care, records, prescriptions, and communication.</p>
+        </header>
 
-      {activeTab === "appointments" ? (
-        <section className="erp-panel">
-          <h3>Appointment Management</h3>
-          <p>View upcoming and past appointments and handle requests.</p>
+        <div className="erp-stats-grid doctor-stats">
+          <article className="erp-stat-card">
+            <h4>Today's Appointments</h4>
+            <p>{upcomingAppointments.length}</p>
+            <span>Including pending requests</span>
+          </article>
+          <article className="erp-stat-card">
+            <h4>Total Patients</h4>
+            <p>{PATIENTS.length}</p>
+            <span>Active under care</span>
+          </article>
+          <article className="erp-stat-card">
+            <h4>Consultations This Week</h4>
+            <p>18</p>
+            <span>Video and chat combined</span>
+          </article>
+          <article className="erp-stat-card">
+            <h4>Pending Notifications</h4>
+            <p>{NOTIFICATIONS.length}</p>
+            <span>Needs your attention</span>
+          </article>
+        </div>
 
-          <div className="doctor-split-grid">
-            <article className="quick-section">
-              <h4>Upcoming Appointments</h4>
-              <div className="table-wrap">
-                <table className="erp-table">
-                  <thead>
-                    <tr>
-                      <th>Time</th>
-                      <th>Patient</th>
-                      <th>Type</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {upcomingAppointments.map((row) => (
-                      <tr key={row.id}>
-                        <td>{row.time}</td>
-                        <td>{row.patient}</td>
-                        <td>{row.type}</td>
-                        <td>{row.status}</td>
-                        <td>
-                          {row.status === "Requested" ? (
-                            <div className="table-actions">
-                              <button type="button" onClick={() => updateAppointmentStatus(row.id, "Upcoming")}>
-                                Accept
-                              </button>
-                              <button
-                                type="button"
-                                className="danger"
-                                onClick={() => updateAppointmentStatus(row.id, "Rejected")}
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          ) : (
-                            <button type="button" onClick={() => updateAppointmentStatus(row.id, "Completed")}>
-                              Mark Done
-                            </button>
-                          )}
-                        </td>
+        {activeTab === "appointments" ? (
+          <section className="erp-panel">
+            <h3>Appointment Management</h3>
+            <p>View upcoming and past appointments and handle requests.</p>
+
+            <div className="doctor-split-grid">
+              <article className="quick-section">
+                <h4>Upcoming Appointments</h4>
+                <div className="table-wrap">
+                  <table className="erp-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Patient</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </article>
+                    </thead>
+                    <tbody>
+                      {upcomingAppointments.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.date}</td>
+                          <td>{row.time}</td>
+                          <td>{row.patientName}</td>
+                          <td>{row.type}</td>
+                          <td>{row.status}</td>
+                          <td>
+                            {row.status === "Requested" ? (
+                              <div className="table-actions">
+                                <button type="button" onClick={() => updateAppointmentStatus(row.id, "Confirmed")}>
+                                  Accept
+                                </button>
+                                <button
+                                  type="button"
+                                  className="danger"
+                                  onClick={() => updateAppointmentStatus(row.id, "Rejected")}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <button type="button" onClick={() => updateAppointmentStatus(row.id, "Completed")}>
+                                Mark Done
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </article>
 
-            <article className="quick-section">
-              <h4>Past / History</h4>
-              <div className="table-wrap">
-                <table className="erp-table">
-                  <thead>
-                    <tr>
-                      <th>Time</th>
-                      <th>Patient</th>
-                      <th>Type</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pastAppointments.map((row) => (
-                      <tr key={row.id}>
-                        <td>{row.time}</td>
-                        <td>{row.patient}</td>
-                        <td>{row.type}</td>
-                        <td>{row.status}</td>
+              <article className="quick-section">
+                <h4>Past / History</h4>
+                <div className="table-wrap">
+                  <table className="erp-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Patient</th>
+                        <th>Type</th>
+                        <th>Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </article>
-          </div>
+                    </thead>
+                    <tbody>
+                      {pastAppointments.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.date}</td>
+                          <td>{row.time}</td>
+                          <td>{row.patientName}</td>
+                          <td>{row.type}</td>
+                          <td>{row.status}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+            </div>
 
-          <div className="quick-section">
-            <h4>Schedule / Availability</h4>
+            <div className="quick-section">
+              <h4>Schedule / Availability</h4>
+              <div className="erp-form-grid">
+                <label>
+                  Monday
+                  <input name="monday" value={availability.monday} onChange={handleAvailabilityChange} />
+                </label>
+                <label>
+                  Tuesday
+                  <input name="tuesday" value={availability.tuesday} onChange={handleAvailabilityChange} />
+                </label>
+                <label>
+                  Wednesday
+                  <input name="wednesday" value={availability.wednesday} onChange={handleAvailabilityChange} />
+                </label>
+                <label>
+                  Thursday
+                  <input name="thursday" value={availability.thursday} onChange={handleAvailabilityChange} />
+                </label>
+                <label>
+                  Friday
+                  <input name="friday" value={availability.friday} onChange={handleAvailabilityChange} />
+                </label>
+              </div>
+              <button className="erp-primary-btn" type="button">Save Schedule</button>
+            </div>
+          </section>
+        ) : null}
+
+        {activeTab === "interaction" ? (
+          <section className="erp-panel">
+            <h3>Patient Interaction</h3>
+            <p>View patient details, run virtual consultations, and communicate with patients.</p>
+
+            <div className="users-heading-row">
+              <h4>Patients</h4>
+              <input
+                type="text"
+                placeholder="Search by patient name, history, age"
+                value={patientSearch}
+                onChange={(event) => setPatientSearch(event.target.value)}
+              />
+            </div>
+
+            <div className="doctor-cards-grid">
+              {filteredPatients.map((patient) => (
+                <article key={patient.id} className="doctor-card">
+                  <h4>{patient.name}</h4>
+                  <p>Age: {patient.age}</p>
+                  <p>History: {patient.history}</p>
+                  <p>Last visit: {patient.lastVisit}</p>
+                  <div className="table-actions">
+                    <button type="button">Start Video Consultation</button>
+                    <button type="button">Open Chat</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {activeTab === "records" ? (
+          <section className="erp-panel">
+            <h3>Medical Records Management</h3>
+            <p>Access and update diagnosis, symptoms, and notes for each patient.</p>
+
             <div className="erp-form-grid">
               <label>
-                Monday
+                Select Patient
+                <select name="patientId" value={recordForm.patientId} onChange={handleRecordChange}>
+                  {PATIENTS.map((patient) => (
+                    <option key={patient.id} value={patient.id}>
+                      {patient.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Diagnosis
+                <input
+                  name="diagnosis"
+                  value={recordForm.diagnosis}
+                  onChange={handleRecordChange}
+                  placeholder="Type diagnosis"
+                />
+              </label>
+              <label>
+                Symptoms
+                <input
+                  name="symptoms"
+                  value={recordForm.symptoms}
+                  onChange={handleRecordChange}
+                  placeholder="Type symptoms"
+                />
+              </label>
+            </div>
+            <label className="doctor-notes-label">
+              Notes
+              <textarea
+                name="notes"
+                value={recordForm.notes}
+                onChange={handleRecordChange}
+                placeholder="Add consultation notes"
+              />
+            </label>
+            <button className="erp-primary-btn" type="button" onClick={saveMedicalRecord}>
+              Update Patient Record
+            </button>
+
+            <div className="quick-section">
+              <h4>Saved Record Updates</h4>
+              <div className="table-wrap">
+                <table className="erp-table">
+                  <thead>
+                    <tr>
+                      <th>Updated At</th>
+                      <th>Patient</th>
+                      <th>Diagnosis</th>
+                      <th>Symptoms</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {medicalRecords.length > 0 ? (
+                      medicalRecords.map((entry) => (
+                        <tr key={entry.id}>
+                          <td>{entry.updatedAt}</td>
+                          <td>{entry.patient}</td>
+                          <td>{entry.diagnosis}</td>
+                          <td>{entry.symptoms}</td>
+                          <td>{entry.notes}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="5">No record updates saved yet.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {activeTab === "prescriptions" ? (
+          <section className="erp-panel">
+            <h3>Prescription Management</h3>
+            <p>Create digital prescriptions and send to patient and pharmacist.</p>
+
+            <div className="erp-form-grid">
+              <label>
+                Patient
+                <select name="patientId" value={prescriptionForm.patientId} onChange={handlePrescriptionChange}>
+                  {PATIENTS.map((patient) => (
+                    <option key={patient.id} value={patient.id}>
+                      {patient.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Medicine
+                <input
+                  name="medicine"
+                  value={prescriptionForm.medicine}
+                  onChange={handlePrescriptionChange}
+                  placeholder="Medicine name"
+                />
+              </label>
+              <label>
+                Dosage
+                <input
+                  name="dosage"
+                  value={prescriptionForm.dosage}
+                  onChange={handlePrescriptionChange}
+                  placeholder="e.g. Once daily"
+                />
+              </label>
+              <label>
+                Duration
+                <input
+                  name="duration"
+                  value={prescriptionForm.duration}
+                  onChange={handlePrescriptionChange}
+                  placeholder="e.g. 30 days"
+                />
+              </label>
+            </div>
+
+            <div className="feature-grid doctor-send-grid">
+              <label>
+                <input
+                  name="sendToPatient"
+                  type="checkbox"
+                  checked={prescriptionForm.sendToPatient}
+                  onChange={handlePrescriptionChange}
+                />
+                Send to Patient
+              </label>
+              <label>
+                <input
+                  name="sendToPharmacist"
+                  type="checkbox"
+                  checked={prescriptionForm.sendToPharmacist}
+                  onChange={handlePrescriptionChange}
+                />
+                Send to Pharmacist
+              </label>
+            </div>
+
+            <button className="erp-primary-btn" type="button" onClick={createPrescription}>
+              Create and Send Prescription
+            </button>
+
+            <div className="quick-section">
+              <h4>Saved Prescriptions</h4>
+              <div className="table-wrap">
+                <table className="erp-table">
+                  <thead>
+                    <tr>
+                      <th>Created At</th>
+                      <th>Patient</th>
+                      <th>Medicine</th>
+                      <th>Dosage</th>
+                      <th>Duration</th>
+                      <th>Sent To</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {doctorPrescriptions.length > 0 ? (
+                      doctorPrescriptions.map((entry) => (
+                        <tr key={entry.id}>
+                          <td>{entry.createdAt}</td>
+                          <td>{entry.patientName}</td>
+                          <td>{entry.medicine}</td>
+                          <td>{entry.dosage}</td>
+                          <td>{entry.duration}</td>
+                          <td>{entry.sentTo || "Not selected"}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="6">No prescriptions saved yet.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {activeTab === "reports" ? (
+          <section className="erp-panel">
+            <h3>Reports & Tracking</h3>
+            <p>Track patients handled, consultation history, and treatment records.</p>
+
+            <div className="erp-stats-grid doctor-stats-3">
+              <article className="erp-stat-card">
+                <h4>Patients Handled (Month)</h4>
+                <p>94</p>
+                <span>+11% from last month</span>
+              </article>
+              <article className="erp-stat-card">
+                <h4>Total Consultations</h4>
+                <p>212</p>
+                <span>Video + chat combined</span>
+              </article>
+              <article className="erp-stat-card">
+                <h4>Ongoing Treatments</h4>
+                <p>38</p>
+                <span>Currently monitored</span>
+              </article>
+            </div>
+
+            <div className="table-wrap">
+              <table className="erp-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Patient</th>
+                    <th>Consultation Mode</th>
+                    <th>Treatment Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {CONSULTATION_LOGS.map((row) => (
+                    <tr key={`${row.date}-${row.patient}`}>
+                      <td>{row.date}</td>
+                      <td>{row.patient}</td>
+                      <td>{row.mode}</td>
+                      <td>{row.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
+
+        {activeTab === "notifications" ? (
+          <section className="erp-panel">
+            <h3>Notifications</h3>
+            <p>Get alerts for appointments and patient messages.</p>
+            <ul className="alert-list">
+              {NOTIFICATIONS.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <div className="inline-actions">
+              <button type="button">Mark All as Read</button>
+              <button type="button">Open Messages</button>
+            </div>
+          </section>
+        ) : null}
+
+        {activeTab === "profile" ? (
+          <section className="erp-panel">
+            <h3>Profile Management</h3>
+            <p>Update specialization, experience, and availability timings.</p>
+            <div className="erp-form-grid">
+              <label>
+                Full Name
+                <input value={CURRENT_DOCTOR_NAME} readOnly />
+              </label>
+              <label>
+                Specialization
+                <input value="Neurology" readOnly />
+              </label>
+              <label>
+                Experience
+                <input value="12 years" readOnly />
+              </label>
+            </div>
+
+            <div className="erp-form-grid">
+              <label>
+                Monday Availability
                 <input name="monday" value={availability.monday} onChange={handleAvailabilityChange} />
               </label>
               <label>
-                Tuesday
+                Tuesday Availability
                 <input name="tuesday" value={availability.tuesday} onChange={handleAvailabilityChange} />
               </label>
               <label>
-                Wednesday
+                Wednesday Availability
                 <input name="wednesday" value={availability.wednesday} onChange={handleAvailabilityChange} />
               </label>
-              <label>
-                Thursday
-                <input name="thursday" value={availability.thursday} onChange={handleAvailabilityChange} />
-              </label>
-              <label>
-                Friday
-                <input name="friday" value={availability.friday} onChange={handleAvailabilityChange} />
-              </label>
             </div>
-            <button className="erp-primary-btn" type="button">Save Schedule</button>
-          </div>
-        </section>
-      ) : null}
 
-      {activeTab === "interaction" ? (
-        <section className="erp-panel">
-          <h3>Patient Interaction</h3>
-          <p>View patient details, run virtual consultations, and communicate with patients.</p>
-
-          <div className="users-heading-row">
-            <h4>Patients</h4>
-            <input
-              type="text"
-              placeholder="Search by patient name, history, age"
-              value={patientSearch}
-              onChange={(event) => setPatientSearch(event.target.value)}
-            />
-          </div>
-
-          <div className="doctor-cards-grid">
-            {filteredPatients.map((patient) => (
-              <article key={patient.id} className="doctor-card">
-                <h4>{patient.name}</h4>
-                <p>Age: {patient.age}</p>
-                <p>History: {patient.history}</p>
-                <p>Last visit: {patient.lastVisit}</p>
-                <div className="table-actions">
-                  <button type="button">Start Video Consultation</button>
-                  <button type="button">Open Chat</button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {activeTab === "records" ? (
-        <section className="erp-panel">
-          <h3>Medical Records Management</h3>
-          <p>Access and update diagnosis, symptoms, and notes for each patient.</p>
-
-          <div className="erp-form-grid">
-            <label>
-              Select Patient
-              <select name="patientId" value={recordForm.patientId} onChange={handleRecordChange}>
-                {PATIENTS.map((patient) => (
-                  <option key={patient.id} value={patient.id}>
-                    {patient.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Diagnosis
-              <input
-                name="diagnosis"
-                value={recordForm.diagnosis}
-                onChange={handleRecordChange}
-                placeholder="Type diagnosis"
-              />
-            </label>
-            <label>
-              Symptoms
-              <input
-                name="symptoms"
-                value={recordForm.symptoms}
-                onChange={handleRecordChange}
-                placeholder="Type symptoms"
-              />
-            </label>
-          </div>
-          <label className="doctor-notes-label">
-            Notes
-            <textarea
-              name="notes"
-              value={recordForm.notes}
-              onChange={handleRecordChange}
-              placeholder="Add consultation notes"
-            />
-          </label>
-          <button className="erp-primary-btn" type="button" onClick={saveMedicalRecord}>
-            Update Patient Record
-          </button>
-
-          <div className="quick-section">
-            <h4>Saved Record Updates</h4>
-            <div className="table-wrap">
-              <table className="erp-table">
-                <thead>
-                  <tr>
-                    <th>Updated At</th>
-                    <th>Patient</th>
-                    <th>Diagnosis</th>
-                    <th>Symptoms</th>
-                    <th>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {medicalRecords.length > 0 ? (
-                    medicalRecords.map((entry) => (
-                      <tr key={entry.id}>
-                        <td>{entry.updatedAt}</td>
-                        <td>{entry.patient}</td>
-                        <td>{entry.diagnosis}</td>
-                        <td>{entry.symptoms}</td>
-                        <td>{entry.notes}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="5">No record updates saved yet.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {activeTab === "prescriptions" ? (
-        <section className="erp-panel">
-          <h3>Prescription Management</h3>
-          <p>Create digital prescriptions and send to patient and pharmacist.</p>
-
-          <div className="erp-form-grid">
-            <label>
-              Patient
-              <select name="patientId" value={prescriptionForm.patientId} onChange={handlePrescriptionChange}>
-                {PATIENTS.map((patient) => (
-                  <option key={patient.id} value={patient.id}>
-                    {patient.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Medicine
-              <input
-                name="medicine"
-                value={prescriptionForm.medicine}
-                onChange={handlePrescriptionChange}
-                placeholder="Medicine name"
-              />
-            </label>
-            <label>
-              Dosage
-              <input
-                name="dosage"
-                value={prescriptionForm.dosage}
-                onChange={handlePrescriptionChange}
-                placeholder="e.g. Once daily"
-              />
-            </label>
-            <label>
-              Duration
-              <input
-                name="duration"
-                value={prescriptionForm.duration}
-                onChange={handlePrescriptionChange}
-                placeholder="e.g. 30 days"
-              />
-            </label>
-          </div>
-
-          <div className="feature-grid doctor-send-grid">
-            <label>
-              <input
-                name="sendToPatient"
-                type="checkbox"
-                checked={prescriptionForm.sendToPatient}
-                onChange={handlePrescriptionChange}
-              />
-              Send to Patient
-            </label>
-            <label>
-              <input
-                name="sendToPharmacist"
-                type="checkbox"
-                checked={prescriptionForm.sendToPharmacist}
-                onChange={handlePrescriptionChange}
-              />
-              Send to Pharmacist
-            </label>
-          </div>
-
-          <button className="erp-primary-btn" type="button" onClick={createPrescription}>
-            Create and Send Prescription
-          </button>
-
-          <div className="quick-section">
-            <h4>Saved Prescriptions</h4>
-            <div className="table-wrap">
-              <table className="erp-table">
-                <thead>
-                  <tr>
-                    <th>Created At</th>
-                    <th>Patient</th>
-                    <th>Medicine</th>
-                    <th>Dosage</th>
-                    <th>Duration</th>
-                    <th>Sent To</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {prescriptions.length > 0 ? (
-                    prescriptions.map((entry) => (
-                      <tr key={entry.id}>
-                        <td>{entry.createdAt}</td>
-                        <td>{entry.patient}</td>
-                        <td>{entry.medicine}</td>
-                        <td>{entry.dosage}</td>
-                        <td>{entry.duration}</td>
-                        <td>{entry.sentTo || "Not selected"}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="6">No prescriptions saved yet.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {activeTab === "reports" ? (
-        <section className="erp-panel">
-          <h3>Reports & Tracking</h3>
-          <p>Track patients handled, consultation history, and treatment records.</p>
-
-          <div className="erp-stats-grid doctor-stats-3">
-            <article className="erp-stat-card">
-              <h4>Patients Handled (Month)</h4>
-              <p>94</p>
-              <span>+11% from last month</span>
-            </article>
-            <article className="erp-stat-card">
-              <h4>Total Consultations</h4>
-              <p>212</p>
-              <span>Video + chat combined</span>
-            </article>
-            <article className="erp-stat-card">
-              <h4>Ongoing Treatments</h4>
-              <p>38</p>
-              <span>Currently monitored</span>
-            </article>
-          </div>
-
-          <div className="table-wrap">
-            <table className="erp-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Patient</th>
-                  <th>Consultation Mode</th>
-                  <th>Treatment Note</th>
-                </tr>
-              </thead>
-              <tbody>
-                {CONSULTATION_LOGS.map((row) => (
-                  <tr key={`${row.date}-${row.patient}`}>
-                    <td>{row.date}</td>
-                    <td>{row.patient}</td>
-                    <td>{row.mode}</td>
-                    <td>{row.note}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : null}
-
-      {activeTab === "notifications" ? (
-        <section className="erp-panel">
-          <h3>Notifications</h3>
-          <p>Get alerts for appointments and patient messages.</p>
-          <ul className="alert-list">
-            {NOTIFICATIONS.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-          <div className="inline-actions">
-            <button type="button">Mark All as Read</button>
-            <button type="button">Open Messages</button>
-          </div>
-        </section>
-      ) : null}
-
-      {activeTab === "profile" ? (
-        <section className="erp-panel">
-          <h3>Profile Management</h3>
-          <p>Update specialization, experience, and availability timings.</p>
-          <div className="erp-form-grid">
-            <label>
-              Full Name
-              <input value="Dr. Michael Chen" readOnly />
-            </label>
-            <label>
-              Specialization
-              <input value="Neurology" readOnly />
-            </label>
-            <label>
-              Experience
-              <input value="12 years" readOnly />
-            </label>
-          </div>
-
-          <div className="erp-form-grid">
-            <label>
-              Monday Availability
-              <input name="monday" value={availability.monday} onChange={handleAvailabilityChange} />
-            </label>
-            <label>
-              Tuesday Availability
-              <input name="tuesday" value={availability.tuesday} onChange={handleAvailabilityChange} />
-            </label>
-            <label>
-              Wednesday Availability
-              <input name="wednesday" value={availability.wednesday} onChange={handleAvailabilityChange} />
-            </label>
-          </div>
-
-          <button className="erp-primary-btn" type="button">Update Profile</button>
-        </section>
-      ) : null}
+            <button className="erp-primary-btn" type="button">Update Profile</button>
+          </section>
+        ) : null}
+      </div>
     </section>
   );
 }

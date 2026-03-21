@@ -1,0 +1,1143 @@
+import { useEffect, useMemo, useState } from "react";
+
+const MENU_GROUPS = [
+  {
+    key: "prescriptions",
+    label: "Prescriptions",
+    items: [
+      { key: "view-prescriptions", label: "View Prescriptions" },
+      { key: "verification", label: "Prescription Verification" },
+      { key: "approved-prescriptions", label: "Approved Prescriptions" }
+    ]
+  },
+  {
+    key: "operations",
+    label: "Operations",
+    items: [
+      { key: "orders", label: "Order Management" },
+      { key: "dispensing", label: "Medicine Dispensing" },
+      { key: "inventory", label: "Inventory Management" }
+    ]
+  },
+  {
+    key: "finance-reports",
+    label: "Finance & Reports",
+    items: [
+      { key: "payment-verification", label: "Payment Verification" },
+      { key: "reports", label: "Reports & Tracking" }
+    ]
+  },
+  {
+    key: "account",
+    label: "Account",
+    items: [
+      { key: "notifications", label: "Notifications" },
+      { key: "profile", label: "Profile Management" }
+    ]
+  }
+];
+
+const CURRENT_PHARMACIST_NAME = "Pharmacist Pro";
+const CURRENT_PHARMACIST_ID = "PH-001";
+
+// Default medicines inventory
+const DEFAULT_MEDICINE_INVENTORY = [
+  { id: "MED-001", name: "Lisinopril 10mg", category: "Cardiovascular", stock: 450, minStock: 100, expiryDate: "2027-08-15", status: "In Stock", price: 2.5 },
+  { id: "MED-002", name: "Metformin 500mg", category: "Diabetes", stock: 320, minStock: 150, expiryDate: "2027-06-20", status: "In Stock", price: 1.8 },
+  { id: "MED-003", name: "Albuterol Inhaler", category: "Respiratory", stock: 45, minStock: 50, expiryDate: "2026-12-10", status: "Low Stock", price: 8.5 },
+  { id: "MED-004", name: "Amoxicillin 250mg", category: "Antibiotic", stock: 180, minStock: 100, expiryDate: "2026-09-05", status: "In Stock", price: 1.2 },
+  { id: "MED-005", name: "Omeprazole 20mg", category: "Gastrointestinal", stock: 75, minStock: 100, expiryDate: "2027-03-12", status: "Low Stock", price: 3.2 },
+  { id: "MED-006", name: "Atorvastatin 40mg", category: "Cardiovascular", stock: 290, minStock: 100, expiryDate: "2027-11-22", status: "In Stock", price: 4.1 }
+];
+
+// Default orders from patients
+const DEFAULT_ORDERS = [
+  { id: "ORD-001", prescriptionId: "RX-302", patientName: "John Doe", medicines: ["Metformin 500mg (Qty: 30)"], orderDate: "2026-03-20", status: "Pending", paymentStatus: "Verified", estimatedDelivery: "2026-03-23" },
+  { id: "ORD-002", prescriptionId: "RX-301", patientName: "Jane Smith", medicines: ["Lisinopril 10mg (Qty: 30)"], orderDate: "2026-03-19", status: "Approved", paymentStatus: "Pending", estimatedDelivery: "2026-03-22" },
+  { id: "ORD-003", prescriptionId: "RX-305", patientName: "Robert Johnson", medicines: ["Atorvastatin 40mg (Qty: 60)"], orderDate: "2026-03-21", status: "Dispatched", paymentStatus: "Verified", estimatedDelivery: "2026-03-24" }
+];
+
+// Default transaction history
+const DEFAULT_TRANSACTIONS = [
+  { id: "TRN-001", orderId: "ORD-045", patient: "Michael Brown", medicine: "Amoxicillin 250mg", quantity: "21 capsules", amount: 25.20, date: "2026-03-21", status: "Dispensed" },
+  { id: "TRN-002", orderId: "ORD-044", patient: "Sarah Williams", medicine: "Atorvastatin 40mg", quantity: "30 tablets", amount: 123.00, date: "2026-03-21", status: "Dispensed" },
+  { id: "TRN-003", orderId: "ORD-043", patient: "David Lee", medicine: "Omeprazole 20mg", quantity: "28 capsules", amount: 89.60, date: "2026-03-20", status: "Dispensed" },
+  { id: "TRN-004", orderId: "ORD-042", patient: "Lisa Anderson", medicine: "Metformin 500mg", quantity: "60 tablets", amount: 108.00, date: "2026-03-20", status: "Dispensed" }
+];
+
+const DOCTORS_LIST = [
+  { id: "D-1", name: "Dr. Sarah Johnson", specialization: "Cardiology", license: "LIC-001" },
+  { id: "D-2", name: "Dr. Michael Chen", specialization: "Neurology", license: "LIC-002" },
+  { id: "D-3", name: "Dr. Lisa Wong", specialization: "Pediatrics", license: "LIC-003" }
+];
+
+const SHARED_DEFAULT_PRESCRIPTIONS = [
+  {
+    id: "RX-301",
+    patientName: "John Doe",
+    medicine: "Lisinopril 10mg",
+    dosage: "Once daily",
+    duration: "30 days",
+    prescribedBy: "Dr. Sarah Johnson",
+    refill: "Needed",
+    status: "Active",
+    sentTo: "Patient & Pharmacist",
+    createdAt: "2026-03-15 10:30"
+  },
+  {
+    id: "RX-302",
+    patientName: "John Doe",
+    medicine: "Metformin 500mg",
+    dosage: "Twice daily",
+    duration: "60 days",
+    prescribedBy: "Dr. Michael Chen",
+    refill: "Available",
+    status: "Active",
+    sentTo: "Patient & Pharmacist",
+    createdAt: "2026-03-18 09:20"
+  },
+  {
+    id: "RX-303",
+    patientName: "Jane Smith",
+    medicine: "Lisinopril 10mg",
+    dosage: "Once daily",
+    duration: "30 days",
+    prescribedBy: "Dr. Sarah Johnson",
+    refill: "Needed",
+    status: "Active",
+    sentTo: "Patient & Pharmacist",
+    createdAt: "2026-03-19 14:00"
+  }
+];
+
+const STORAGE_KEYS = {
+  prescriptions: "medico.shared.prescriptions",
+  inventory: "medico.pharmacist.inventory",
+  orders: "medico.pharmacist.orders",
+  transactions: "medico.pharmacist.transactions",
+  profile: "medico.pharmacist.profile"
+};
+
+function readStorage(key, fallbackValue) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallbackValue;
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallbackValue;
+  } catch {
+    return fallbackValue;
+  }
+}
+
+function normalizePrescription(entry) {
+  return {
+    id: entry.id || `RX-${Date.now()}`,
+    patientName: entry.patientName || entry.patient || "Unknown",
+    medicine: entry.medicine || "Unknown Medicine",
+    dosage: entry.dosage || "As prescribed",
+    duration: entry.duration || "30 days",
+    prescribedBy: entry.prescribedBy || "Dr. Unknown",
+    refill: entry.refill || "Not specified",
+    status: entry.status || "Active",
+    sentTo: entry.sentTo || "Patient",
+    createdAt: entry.createdAt || new Date().toLocaleString()
+  };
+}
+
+function PharmacistModule() {
+  const [activeMenu, setActiveMenu] = useState("view-prescriptions");
+  const [openGroup, setOpenGroup] = useState("prescriptions");
+
+  // Prescriptions data
+  const [prescriptions, setPrescriptions] = useState(() => {
+    const shared = readStorage(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS);
+    return shared.map(normalizePrescription);
+  });
+
+  // Inventory management
+  const [inventory, setInventory] = useState(() => readStorage(STORAGE_KEYS.inventory, DEFAULT_MEDICINE_INVENTORY));
+
+  // Orders management
+  const [orders, setOrders] = useState(() => readStorage(STORAGE_KEYS.orders, DEFAULT_ORDERS));
+
+  // Transactions
+  const [transactions, setTransactions] = useState(() => readStorage(STORAGE_KEYS.transactions, DEFAULT_TRANSACTIONS));
+
+  // Verification states
+  const [verificationForm, setVerificationForm] = useState({ prescriptionId: "", verificationNotes: "", approved: false });
+  const [approvedPrescriptions, setApprovedPrescriptions] = useState([]);
+
+  // Order management
+  const [orderAction, setOrderAction] = useState({ orderId: "", action: "", notes: "" });
+
+  // Dispensing
+  const [dispensingForm, setDispensingForm] = useState({ orderId: "", dispensingNotes: "" });
+
+  // Inventory form
+  const [inventoryForm, setInventoryForm] = useState({ medicineId: "", quantity: "", action: "" });
+
+  // Payment verification
+  const [paymentForm, setPaymentForm] = useState({ orderId: "", verificationNotes: "" });
+
+  // Profile
+  const [profile, setProfile] = useState(() => {
+    return readStorage(STORAGE_KEYS.profile, {
+      name: CURRENT_PHARMACIST_NAME,
+      id: CURRENT_PHARMACIST_ID,
+      email: "pharmacist@medico.com",
+      phone: "+1-888-123-4567",
+      license: "PH-LIC-001",
+      facility: "Medico Pharmacy"
+    });
+  });
+
+  // Persist data to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.prescriptions, JSON.stringify(prescriptions));
+  }, [prescriptions]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.inventory, JSON.stringify(inventory));
+  }, [inventory]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.orders, JSON.stringify(orders));
+  }, [orders]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify(transactions));
+  }, [transactions]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(profile));
+  }, [profile]);
+
+  // Sidebar toggle
+  const toggleGroup = (groupKey) => {
+    setOpenGroup(openGroup === groupKey ? "" : groupKey);
+  };
+
+  // Prescription verification
+  const handleVerifyPrescription = () => {
+    if (!verificationForm.prescriptionId || !verificationForm.approved) {
+      alert("Please select a prescription and approve it");
+      return;
+    }
+
+    const presc = prescriptions.find((p) => p.id === verificationForm.prescriptionId);
+    if (presc) {
+      const updatedPresc = { ...presc, status: "Verified by Pharmacist" };
+      setApprovedPrescriptions((prev) => [...prev, updatedPresc]);
+      setVerificationForm({ prescriptionId: "", verificationNotes: "", approved: false });
+      alert("Prescription verified successfully!");
+    }
+  };
+
+  // Order management
+  const handleOrderAction = () => {
+    if (!orderAction.orderId || !orderAction.action) {
+      alert("Please select an order and action");
+      return;
+    }
+
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderAction.orderId
+          ? { ...o, status: orderAction.action === "accept" ? "Approved" : orderAction.action === "dispatch" ? "Dispatched" : "Rejected" }
+          : o
+      )
+    );
+    setOrderAction({ orderId: "", action: "", notes: "" });
+    alert(`Order ${orderAction.action === "accept" ? "approved" : "rejected"}!`);
+  };
+
+  // Update inventory
+  const handleInventoryUpdate = () => {
+    if (!inventoryForm.medicineId || !inventoryForm.quantity || !inventoryForm.action) {
+      alert("Please fill all fields");
+      return;
+    }
+
+    const qty = parseInt(inventoryForm.quantity);
+    setInventory((prev) =>
+      prev.map((med) =>
+        med.id === inventoryForm.medicineId
+          ? {
+              ...med,
+              stock: inventoryForm.action === "add" ? med.stock + qty : Math.max(0, med.stock - qty),
+              status: med.stock - qty <= med.minStock ? "Low Stock" : "In Stock"
+            }
+          : med
+      )
+    );
+    setInventoryForm({ medicineId: "", quantity: "", action: "" });
+    alert("Inventory updated!");
+  };
+
+  // Dispense medicine
+  const handleDispenseMedicine = () => {
+    if (!dispensingForm.orderId) {
+      alert("Please select an order");
+      return;
+    }
+
+    const order = orders.find((o) => o.id === dispensingForm.orderId);
+    if (order) {
+      setOrders((prev) => prev.map((o) => (o.id === dispensingForm.orderId ? { ...o, status: "Delivered" } : o)));
+
+      // Add transaction
+      setTransactions((prev) => [
+        ...prev,
+        {
+          id: `TRN-${Date.now()}`,
+          orderId: dispensingForm.orderId,
+          patient: order.patientName,
+          medicine: order.medicines[0],
+          quantity: "As per prescription",
+          amount: Math.random() * 100 + 20,
+          date: new Date().toISOString().split("T")[0],
+          status: "Dispensed"
+        }
+      ]);
+
+      setDispensingForm({ orderId: "", dispensingNotes: "" });
+      alert("Medicine dispensed successfully!");
+    }
+  };
+
+  // Verify payment
+  const handleVerifyPayment = () => {
+    if (!paymentForm.orderId) {
+      alert("Please select an order");
+      return;
+    }
+
+    setOrders((prev) =>
+      prev.map((o) => (o.id === paymentForm.orderId ? { ...o, paymentStatus: "Verified" } : o))
+    );
+    setPaymentForm({ orderId: "", verificationNotes: "" });
+    alert("Payment verified!");
+  };
+
+  // Computed values
+  const pendingPrescriptions = useMemo(() => {
+    return prescriptions.filter((p) => p.sentTo.includes("Pharmacist") && p.status === "Active");
+  }, [prescriptions]);
+
+  const pendingOrders = useMemo(() => {
+    return orders.filter((o) => o.status === "Pending");
+  }, [orders]);
+
+  const lowStockItems = useMemo(() => {
+    return inventory.filter((m) => m.stock <= m.minStock);
+  }, [inventory]);
+
+  const pendingPayments = useMemo(() => {
+    return orders.filter((o) => o.paymentStatus === "Pending");
+  }, [orders]);
+
+  const stats = useMemo(
+    () => ({
+      pendingPrescriptions: pendingPrescriptions.length,
+      pendingOrders: pendingOrders.length,
+      lowStockItems: lowStockItems.length,
+      totalInventory: inventory.reduce((acc, m) => acc + m.stock, 0)
+    }),
+    [pendingPrescriptions, pendingOrders, lowStockItems, inventory]
+  );
+
+  // Notifications
+  const notifications = useMemo(() => {
+    const notif = [];
+    if (stats.pendingPrescriptions > 0) notif.push(`${stats.pendingPrescriptions} new prescription(s) awaiting verification`);
+    if (stats.pendingOrders > 0) notif.push(`${stats.pendingOrders} pending order(s) requiring action`);
+    if (stats.lowStockItems > 0) notif.push(`${stats.lowStockItems} medicine(s) low on stock`);
+    if (pendingPayments.length > 0) notif.push(`${pendingPayments.length} order(s) awaiting payment verification`);
+    return notif;
+  }, [stats, pendingPayments]);
+
+  return (
+    <>
+      <div className="patient-erp-shell">
+        {/* Left Sidebar */}
+        <nav className="erp-side-nav">
+          {/* Role Card */}
+          <div className="role-card">
+            <div style={{ fontSize: "12px", color: "#666" }}>Role</div>
+            <div style={{ fontSize: "18px", fontWeight: "bold", color: "#0066cc" }}>Pharmacist</div>
+            <div style={{ fontSize: "11px", color: "#666" }}>Pharmacy Management</div>
+          </div>
+
+          {/* Navigation Groups */}
+          {MENU_GROUPS.map((group) => (
+            <div key={group.key} className="erp-nav-group">
+              <button
+                className="erp-group-header"
+                onClick={() => toggleGroup(group.key)}
+                style={{
+                  background: openGroup === group.key ? "#f0f4f8" : "transparent",
+                  color: openGroup === group.key ? "#0066cc" : "#333"
+                }}
+              >
+                <span>{group.label}</span>
+                <span style={{ marginLeft: "auto" }}>{openGroup === group.key ? "−" : "+"}</span>
+              </button>
+
+              {openGroup === group.key && (
+                <div className="erp-group-items">
+                  {group.items.map((item) => (
+                    <button
+                      key={item.key}
+                      className={`erp-nav-item ${activeMenu === item.key ? "active" : ""}`}
+                      onClick={() => setActiveMenu(item.key)}
+                      style={{
+                        background: activeMenu === item.key ? "#e6f2ff" : "transparent",
+                        color: activeMenu === item.key ? "#0066cc" : "#333",
+                        borderLeft: activeMenu === item.key ? "3px solid #0066cc" : "3px solid transparent"
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </nav>
+
+        {/* Main Content */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          {/* Header Section */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "1rem", borderBottom: "1px solid #ddd" }}>
+            <h2 style={{ margin: 0 }}>
+              {MENU_GROUPS.flatMap((g) => g.items)
+                .find((item) => item.key === activeMenu)
+                ?.label || "Dashboard"}
+            </h2>
+          </div>
+
+          {/* Stats Cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
+            <div className="stat-card" style={{ borderLeft: "4px solid #0066cc" }}>
+              <div className="stat-label">Pending Prescriptions</div>
+              <div className="stat-value">{stats.pendingPrescriptions}</div>
+              <div className="stat-subtitle">Awaiting verification</div>
+            </div>
+            <div className="stat-card" style={{ borderLeft: "4px solid #00aa88" }}>
+              <div className="stat-label">Pending Orders</div>
+              <div className="stat-value">{stats.pendingOrders}</div>
+              <div className="stat-subtitle">Awaiting approval</div>
+            </div>
+            <div className="stat-card" style={{ borderLeft: "4px solid #ff6b35" }}>
+              <div className="stat-label">Low Stock Items</div>
+              <div className="stat-value">{stats.lowStockItems}</div>
+              <div className="stat-subtitle">Require restocking</div>
+            </div>
+            <div className="stat-card" style={{ borderLeft: "4px solid #667eea" }}>
+              <div className="stat-label">Total Inventory</div>
+              <div className="stat-value">{stats.totalInventory}</div>
+              <div className="stat-subtitle">Unique medicines</div>
+            </div>
+          </div>
+
+          {/* Content Area */}
+          <div style={{ flex: 1, background: "#fff", padding: "1.5rem", borderRadius: "8px", border: "1px solid #e0e0e0" }}>
+            {/* VIEW PRESCRIPTIONS */}
+            {activeMenu === "view-prescriptions" && (
+              <div>
+                <h3>View Prescriptions</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Prescriptions received from doctors for dispensing</p>
+
+                {pendingPrescriptions.length === 0 ? (
+                  <p style={{ color: "#999" }}>No pending prescriptions</p>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "2px solid #ddd" }}>
+                          <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Rx ID</th>
+                          <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Patient</th>
+                          <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Medicine</th>
+                          <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Dosage</th>
+                          <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Duration</th>
+                          <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Prescribed By</th>
+                          <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Created</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendingPrescriptions.map((presc) => (
+                          <tr key={presc.id} style={{ borderBottom: "1px solid #eee" }}>
+                            <td style={{ padding: "0.75rem" }}>{presc.id}</td>
+                            <td style={{ padding: "0.75rem" }}>{presc.patientName}</td>
+                            <td style={{ padding: "0.75rem" }}>{presc.medicine}</td>
+                            <td style={{ padding: "0.75rem" }}>{presc.dosage}</td>
+                            <td style={{ padding: "0.75rem" }}>{presc.duration}</td>
+                            <td style={{ padding: "0.75rem" }}>{presc.prescribedBy}</td>
+                            <td style={{ padding: "0.75rem", fontSize: "12px", color: "#666" }}>{presc.createdAt}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PRESCRIPTION VERIFICATION */}
+            {activeMenu === "verification" && (
+              <div>
+                <h3>Prescription Verification</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Verify authenticity and availability of prescribed medicines</p>
+
+                <div style={{ background: "#f9f9f9", padding: "1rem", borderRadius: "6px", marginBottom: "1rem" }}>
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Select Prescription:</label>
+                    <select
+                      value={verificationForm.prescriptionId}
+                      onChange={(e) => setVerificationForm({ ...verificationForm, prescriptionId: e.target.value })}
+                      style={{ width: "100%", padding: "0.75rem", border: "1px solid #ddd", borderRadius: "4px" }}
+                    >
+                      <option value="">-- Select a prescription --</option>
+                      {pendingPrescriptions.map((presc) => (
+                        <option key={presc.id} value={presc.id}>
+                          {presc.id} - {presc.patientName} ({presc.medicine})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {verificationForm.prescriptionId && (
+                    <>
+                      {(() => {
+                        const presc = prescriptions.find((p) => p.id === verificationForm.prescriptionId);
+                        return presc ? (
+                          <div style={{ background: "#fff", padding: "1rem", borderRadius: "4px", marginBottom: "1rem", border: "1px solid #ddd" }}>
+                            <p>
+                              <strong>Patient Name:</strong> {presc.patientName}
+                            </p>
+                            <p>
+                              <strong>Medicine:</strong> {presc.medicine}
+                            </p>
+                            <p>
+                              <strong>Dosage:</strong> {presc.dosage}
+                            </p>
+                            <p>
+                              <strong>Duration:</strong> {presc.duration}
+                            </p>
+                            <p>
+                              <strong>Prescribed By:</strong> {presc.prescribedBy}
+                            </p>
+
+                            {(() => {
+                              const doctor = DOCTORS_LIST.find((d) => d.name === presc.prescribedBy);
+                              return doctor ? (
+                                <p style={{ color: "#0a7a1f", margin: "0.5rem 0" }}>
+                                  ✓ Doctor Verified - License: {doctor.license}
+                                </p>
+                              ) : (
+                                <p style={{ color: "#d32f2f", margin: "0.5rem 0" }}>✗ Doctor details not found</p>
+                              );
+                            })()}
+
+                            {(() => {
+                              const med = inventory.find((m) => m.name.includes(presc.medicine.split(" ")[0]));
+                              return med ? (
+                                <p style={{ color: med.stock > 0 ? "#0a7a1f" : "#d32f2f", margin: "0.5rem 0" }}>
+                                  {med.stock > 0 ? "✓" : "✗"} Medicine Available - Stock: {med.stock}
+                                </p>
+                              ) : (
+                                <p style={{ color: "#ff9800", margin: "0.5rem 0" }}>⚠ Medicine not in inventory</p>
+                              );
+                            })()}
+                          </div>
+                        ) : null;
+                      })()}
+
+                      <div style={{ marginBottom: "1rem" }}>
+                        <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Verification Notes:</label>
+                        <textarea
+                          value={verificationForm.verificationNotes}
+                          onChange={(e) => setVerificationForm({ ...verificationForm, verificationNotes: e.target.value })}
+                          placeholder="Add verification notes..."
+                          style={{ width: "100%", padding: "0.75rem", border: "1px solid #ddd", borderRadius: "4px", minHeight: "100px" }}
+                        />
+                      </div>
+
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+                        <input
+                          type="checkbox"
+                          checked={verificationForm.approved}
+                          onChange={(e) => setVerificationForm({ ...verificationForm, approved: e.target.checked })}
+                        />
+                        <span>Approve prescription for dispensing</span>
+                      </label>
+
+                      <button
+                        onClick={handleVerifyPrescription}
+                        style={{
+                          background: "#0066cc",
+                          color: "#fff",
+                          border: "none",
+                          padding: "0.75rem 1.5rem",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          fontWeight: "500"
+                        }}
+                      >
+                        Verify & Approve
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* APPROVED PRESCRIPTIONS */}
+            {activeMenu === "approved-prescriptions" && (
+              <div>
+                <h3>Approved Prescriptions</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Prescriptions verified and approval for dispensing</p>
+
+                {approvedPrescriptions.length === 0 ? (
+                  <p style={{ color: "#999" }}>No approved prescriptions yet</p>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "2px solid #ddd" }}>
+                          <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Rx ID</th>
+                          <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Patient</th>
+                          <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Medicine</th>
+                          <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Status</th>
+                          <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Approved Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {approvedPrescriptions.map((presc) => (
+                          <tr key={presc.id} style={{ borderBottom: "1px solid #eee" }}>
+                            <td style={{ padding: "0.75rem" }}>{presc.id}</td>
+                            <td style={{ padding: "0.75rem" }}>{presc.patientName}</td>
+                            <td style={{ padding: "0.75rem" }}>{presc.medicine}</td>
+                            <td style={{ padding: "0.75rem" }}>
+                              <span style={{ background: "#e8f5e9", color: "#2e7d32", padding: "0.25rem 0.75rem", borderRadius: "12px", fontSize: "12px" }}>
+                                {presc.status}
+                              </span>
+                            </td>
+                            <td style={{ padding: "0.75rem", fontSize: "12px", color: "#666" }}>{new Date().toLocaleDateString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ORDER MANAGEMENT */}
+            {activeMenu === "orders" && (
+              <div>
+                <h3>Order Management</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Manage medicine orders from patients</p>
+
+                <div style={{ marginBottom: "2rem" }}>
+                  <h4>Pending Orders</h4>
+                  {pendingOrders.length === 0 ? (
+                    <p style={{ color: "#999" }}>No pending orders</p>
+                  ) : (
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead>
+                          <tr style={{ borderBottom: "2px solid #ddd" }}>
+                            <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Order ID</th>
+                            <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Patient</th>
+                            <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Medicines</th>
+                            <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Order Date</th>
+                            <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Status</th>
+                            <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Payment</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pendingOrders.map((order) => (
+                            <tr key={order.id} style={{ borderBottom: "1px solid #eee" }}>
+                              <td style={{ padding: "0.75rem" }}>{order.id}</td>
+                              <td style={{ padding: "0.75rem" }}>{order.patientName}</td>
+                              <td style={{ padding: "0.75rem" }}>{order.medicines.join(", ")}</td>
+                              <td style={{ padding: "0.75rem" }}>{order.orderDate}</td>
+                              <td style={{ padding: "0.75rem" }}>
+                                <span style={{ background: "#fff3e0", color: "#e65100", padding: "0.25rem 0.75rem", borderRadius: "12px", fontSize: "12px" }}>
+                                  {order.status}
+                                </span>
+                              </td>
+                              <td style={{ padding: "0.75rem" }}>{order.paymentStatus}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ background: "#f9f9f9", padding: "1rem", borderRadius: "6px" }}>
+                  <h4>Order Action</h4>
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Select Order:</label>
+                    <select
+                      value={orderAction.orderId}
+                      onChange={(e) => setOrderAction({ ...orderAction, orderId: e.target.value })}
+                      style={{ width: "100%", padding: "0.75rem", border: "1px solid #ddd", borderRadius: "4px" }}
+                    >
+                      <option value="">-- Select an order --</option>
+                      {orders.map((order) => (
+                        <option key={order.id} value={order.id}>
+                          {order.id} - {order.patientName} ({order.status})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Action:</label>
+                    <select
+                      value={orderAction.action}
+                      onChange={(e) => setOrderAction({ ...orderAction, action: e.target.value })}
+                      style={{ width: "100%", padding: "0.75rem", border: "1px solid #ddd", borderRadius: "4px" }}
+                    >
+                      <option value="">-- Select action --</option>
+                      <option value="accept">Accept Order (Approved)</option>
+                      <option value="dispatch">Dispatch Order</option>
+                      <option value="reject">Reject Order</option>
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Notes:</label>
+                    <textarea
+                      value={orderAction.notes}
+                      onChange={(e) => setOrderAction({ ...orderAction, notes: e.target.value })}
+                      placeholder="Add action notes..."
+                      style={{ width: "100%", padding: "0.75rem", border: "1px solid #ddd", borderRadius: "4px", minHeight: "80px" }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleOrderAction}
+                    style={{
+                      background: "#00aa88",
+                      color: "#fff",
+                      border: "none",
+                      padding: "0.75rem 1.5rem",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontWeight: "500"
+                    }}
+                  >
+                    Update Order Status
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* INVENTORY MANAGEMENT */}
+            {activeMenu === "inventory" && (
+              <div>
+                <h3>Inventory Management</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Track and manage medicine stock levels</p>
+
+                <div style={{ overflowX: "auto", marginBottom: "2rem" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "2px solid #ddd" }}>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Medicine</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Category</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Stock</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Min Stock</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Expiry Date</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Status</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {inventory.map((med) => (
+                        <tr key={med.id} style={{ borderBottom: "1px solid #eee" }}>
+                          <td style={{ padding: "0.75rem" }}>{med.name}</td>
+                          <td style={{ padding: "0.75rem" }}>{med.category}</td>
+                          <td style={{ padding: "0.75rem", fontWeight: "bold" }}>{med.stock}</td>
+                          <td style={{ padding: "0.75rem" }}>{med.minStock}</td>
+                          <td style={{ padding: "0.75rem" }}>{med.expiryDate}</td>
+                          <td style={{ padding: "0.75rem" }}>
+                            <span
+                              style={{
+                                background: med.status === "In Stock" ? "#e8f5e9" : "#fff3e0",
+                                color: med.status === "In Stock" ? "#2e7d32" : "#e65100",
+                                padding: "0.25rem 0.75rem",
+                                borderRadius: "12px",
+                                fontSize: "12px"
+                              }}
+                            >
+                              {med.status}
+                            </span>
+                          </td>
+                          <td style={{ padding: "0.75rem" }}>${med.price.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style={{ background: "#f9f9f9", padding: "1rem", borderRadius: "6px" }}>
+                  <h4>Update Stock Levels</h4>
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Select Medicine:</label>
+                    <select
+                      value={inventoryForm.medicineId}
+                      onChange={(e) => setInventoryForm({ ...inventoryForm, medicineId: e.target.value })}
+                      style={{ width: "100%", padding: "0.75rem", border: "1px solid #ddd", borderRadius: "4px" }}
+                    >
+                      <option value="">-- Select medicine --</option>
+                      {inventory.map((med) => (
+                        <option key={med.id} value={med.id}>
+                          {med.name} (Current: {med.stock})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Quantity:</label>
+                    <input
+                      type="number"
+                      value={inventoryForm.quantity}
+                      onChange={(e) => setInventoryForm({ ...inventoryForm, quantity: e.target.value })}
+                      placeholder="Enter quantity"
+                      style={{ width: "100%", padding: "0.75rem", border: "1px solid #ddd", borderRadius: "4px" }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "bold" }}>Action:</label>
+                    <div style={{ display: "flex", gap: "1rem" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <input
+                          type="radio"
+                          name="action"
+                          value="add"
+                          checked={inventoryForm.action === "add"}
+                          onChange={(e) => setInventoryForm({ ...inventoryForm, action: e.target.value })}
+                        />
+                        <span>Add Stock</span>
+                      </label>
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <input
+                          type="radio"
+                          name="action"
+                          value="remove"
+                          checked={inventoryForm.action === "remove"}
+                          onChange={(e) => setInventoryForm({ ...inventoryForm, action: e.target.value })}
+                        />
+                        <span>Remove Stock</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleInventoryUpdate}
+                    style={{
+                      background: "#667eea",
+                      color: "#fff",
+                      border: "none",
+                      padding: "0.75rem 1.5rem",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontWeight: "500"
+                    }}
+                  >
+                    Update Inventory
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* MEDICINE DISPENSING */}
+            {activeMenu === "dispensing" && (
+              <div>
+                <h3>Medicine Dispensing</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Prepare and dispense medicines to patients</p>
+
+                <div style={{ background: "#f9f9f9", padding: "1rem", borderRadius: "6px", marginBottom: "2rem" }}>
+                  <h4>Dispense Medicine</h4>
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Select Approved Order:</label>
+                    <select
+                      value={dispensingForm.orderId}
+                      onChange={(e) => setDispensingForm({ ...dispensingForm, orderId: e.target.value })}
+                      style={{ width: "100%", padding: "0.75rem", border: "1px solid #ddd", borderRadius: "4px" }}
+                    >
+                      <option value="">-- Select order --</option>
+                      {orders
+                        .filter((o) => o.status === "Approved" || o.status === "Pending")
+                        .map((order) => (
+                          <option key={order.id} value={order.id}>
+                            {order.id} - {order.patientName} ({order.medicines[0]})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Dispensing Notes:</label>
+                    <textarea
+                      value={dispensingForm.dispensingNotes}
+                      onChange={(e) => setDispensingForm({ ...dispensingForm, dispensingNotes: e.target.value })}
+                      placeholder="Add dispensing notes, delivery details, etc..."
+                      style={{ width: "100%", padding: "0.75rem", border: "1px solid #ddd", borderRadius: "4px", minHeight: "100px" }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleDispenseMedicine}
+                    style={{
+                      background: "#ff6b35",
+                      color: "#fff",
+                      border: "none",
+                      padding: "0.75rem 1.5rem",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontWeight: "500"
+                    }}
+                  >
+                    Mark as Dispensed
+                  </button>
+                </div>
+
+                <div>
+                  <h4>Ready for Dispensing</h4>
+                  {orders
+                    .filter((o) => o.status === "Approved")
+                    .slice(0, 5)
+                    .map((order) => (
+                      <div key={order.id} style={{ background: "#fff", padding: "1rem", borderRadius: "6px", marginBottom: "1rem", border: "1px solid #ddd" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                          <strong>{order.id}</strong>
+                          <span style={{ color: "#666", fontSize: "12px" }}>{order.orderDate}</span>
+                        </div>
+                        <p style={{ margin: "0.25rem 0" }}>
+                          <strong>Patient:</strong> {order.patientName}
+                        </p>
+                        <p style={{ margin: "0.25rem 0" }}>
+                          <strong>Medicines:</strong> {order.medicines.join(", ")}
+                        </p>
+                        <p style={{ margin: "0.25rem 0" }}>
+                          <strong>Est. Delivery:</strong> {order.estimatedDelivery}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* PAYMENT VERIFICATION */}
+            {activeMenu === "payment-verification" && (
+              <div>
+                <h3>Payment Verification</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Confirm and verify patient payments</p>
+
+                <div style={{ marginBottom: "2rem" }}>
+                  <h4>Pending Payments</h4>
+                  {pendingPayments.length === 0 ? (
+                    <p style={{ color: "#999" }}>No pending payments</p>
+                  ) : (
+                    <div style={{ display: "grid", gap: "1rem" }}>
+                      {pendingPayments.map((order) => (
+                        <div key={order.id} style={{ background: "#fff3e0", padding: "1rem", borderRadius: "6px", border: "1px solid #ffe0b2" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "0.5rem" }}>
+                            <div>
+                              <strong>{order.id}</strong>
+                              <p style={{ margin: "0.25rem 0", color: "#666" }}>Patient: {order.patientName}</p>
+                            </div>
+                            <span style={{ background: "#fff9c4", padding: "0.25rem 0.75rem", borderRadius: "12px", fontSize: "12px", fontWeight: "bold" }}>
+                              PENDING
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ background: "#f9f9f9", padding: "1rem", borderRadius: "6px" }}>
+                  <h4>Verify Payment</h4>
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Select Order:</label>
+                    <select
+                      value={paymentForm.orderId}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, orderId: e.target.value })}
+                      style={{ width: "100%", padding: "0.75rem", border: "1px solid #ddd", borderRadius: "4px" }}
+                    >
+                      <option value="">-- Select order --</option>
+                      {orders.map((order) => (
+                        <option key={order.id} value={order.id}>
+                          {order.id} - {order.patientName} (Payment: {order.paymentStatus})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label style={{ display: "block", marginBottom: "0.5rem", fontWeight: "500" }}>Verification Notes:</label>
+                    <textarea
+                      value={paymentForm.verificationNotes}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, verificationNotes: e.target.value })}
+                      placeholder="Add payment verification details..."
+                      style={{ width: "100%", padding: "0.75rem", border: "1px solid #ddd", borderRadius: "4px", minHeight: "80px" }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleVerifyPayment}
+                    style={{
+                      background: "#4CAF50",
+                      color: "#fff",
+                      border: "none",
+                      padding: "0.75rem 1.5rem",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontWeight: "500"
+                    }}
+                  >
+                    Verify Payment
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* REPORTS & TRACKING */}
+            {activeMenu === "reports" && (
+              <div>
+                <h3>Reports & Tracking</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>View transaction history and track dispensed medicines</p>
+
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "2px solid #ddd" }}>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Tx ID</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Order ID</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Patient</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Medicine</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Quantity</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Amount</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Date</th>
+                        <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: "bold" }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactions.map((tx) => (
+                        <tr key={tx.id} style={{ borderBottom: "1px solid #eee" }}>
+                          <td style={{ padding: "0.75rem" }}>{tx.id}</td>
+                          <td style={{ padding: "0.75rem" }}>{tx.orderId}</td>
+                          <td style={{ padding: "0.75rem" }}>{tx.patient}</td>
+                          <td style={{ padding: "0.75rem" }}>{tx.medicine}</td>
+                          <td style={{ padding: "0.75rem" }}>{tx.quantity}</td>
+                          <td style={{ padding: "0.75rem" }}>
+                            <strong>${tx.amount.toFixed(2)}</strong>
+                          </td>
+                          <td style={{ padding: "0.75rem" }}>{tx.date}</td>
+                          <td style={{ padding: "0.75rem" }}>
+                            <span style={{ background: "#e8f5e9", color: "#2e7d32", padding: "0.25rem 0.75rem", borderRadius: "12px", fontSize: "12px" }}>
+                              {tx.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* NOTIFICATIONS */}
+            {activeMenu === "notifications" && (
+              <div>
+                <h3>Notifications</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>System alerts and important updates</p>
+
+                {notifications.length === 0 ? (
+                  <p style={{ color: "#999" }}>No notifications</p>
+                ) : (
+                  <div style={{ display: "grid", gap: "0.75rem" }}>
+                    {notifications.map((notif, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          background: "#e3f2fd",
+                          border: "1px solid #bbdefb",
+                          borderLeft: "4px solid #0066cc",
+                          padding: "1rem",
+                          borderRadius: "4px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "1rem"
+                        }}
+                      >
+                        <span style={{ fontSize: "20px" }}>ℹ</span>
+                        <span>{notif}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PROFILE MANAGEMENT */}
+            {activeMenu === "profile" && (
+              <div>
+                <h3>Profile Management</h3>
+                <p style={{ color: "#666", marginBottom: "1rem" }}>Manage pharmacist profile information</p>
+
+                <div style={{ background: "#f9f9f9", padding: "1.5rem", borderRadius: "6px", maxWidth: "500px" }}>
+                  <div style={{ marginBottom: "1rem" }}>
+                    <p style={{ margin: "0.5rem 0", fontSize: "14px", color: "#666" }}>
+                      <strong>Pharmacist Name:</strong> {profile.name}
+                    </p>
+                    <p style={{ margin: "0.5rem 0", fontSize: "14px", color: "#666" }}>
+                      <strong>Pharmacist ID:</strong> {profile.id}
+                    </p>
+                    <p style={{ margin: "0.5rem 0", fontSize: "14px", color: "#666" }}>
+                      <strong>License:</strong> {profile.license}
+                    </p>
+                    <p style={{ margin: "0.5rem 0", fontSize: "14px", color: "#666" }}>
+                      <strong>Facility:</strong> {profile.facility}
+                    </p>
+                    <p style={{ margin: "0.5rem 0", fontSize: "14px", color: "#666" }}>
+                      <strong>Email:</strong> {profile.email}
+                    </p>
+                    <p style={{ margin: "0.5rem 0", fontSize: "14px", color: "#666" }}>
+                      <strong>Phone:</strong> {profile.phone}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => alert("Profile update feature coming soon!")}
+                    style={{
+                      background: "#0066cc",
+                      color: "#fff",
+                      border: "none",
+                      padding: "0.75rem 1.5rem",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontWeight: "500"
+                    }}
+                  >
+                    Edit Profile
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default PharmacistModule;

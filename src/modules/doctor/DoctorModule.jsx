@@ -412,7 +412,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 onClick={() => setOpenGroup((prev) => (prev === group.key ? "" : group.key))}
               >
                 <span>{group.label}</span>
-                <span aria-hidden="true">{openGroup === group.key ? "v" : ">"}</span>
+                <span aria-hidden="true">{openGroup === group.key ? "▼" : "▶"}</span>
               </button>
 
               {openGroup === group.key ? (
@@ -424,7 +424,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
                       className={activeTab === tab.key ? "active" : ""}
                       onClick={() => setActiveTab(tab.key)}
                     >
-                      {"> "}{tab.label}
+                      {tab.label}
                     </button>
                   ))}
                 </div>
@@ -437,8 +437,8 @@ function DoctorModule({ currentUsername = "doctor" }) {
       <div className="doctor-main-area">
         <header className="doctor-header">
           <h2>{activeTabLabel}</h2>
-          <p>Manage appointments, patient care, records, prescriptions, and communication.</p>
-          <p>Signed in as: {currentUsername}</p>
+          <p className="dashboard-subtitle">Manage appointments, patient care, records, prescriptions, and communication.</p>
+          <p className="dashboard-userline">Signed in as: {currentUsername}</p>
         </header>
 
         {uiNotice ? <p className="doctor-notice">{uiNotice}</p> : null}

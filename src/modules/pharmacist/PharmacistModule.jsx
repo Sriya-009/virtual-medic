@@ -510,7 +510,7 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
                 onClick={() => toggleGroup(group.key)}
               >
                 <span>{group.label}</span>
-                <span style={{ marginLeft: "auto" }} aria-hidden="true">{openGroup === group.key ? "v" : ">"}</span>
+                <span style={{ marginLeft: "auto" }} aria-hidden="true">{openGroup === group.key ? "▼" : "▶"}</span>
               </button>
 
               {openGroup === group.key && (
@@ -522,7 +522,7 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
                       className={activeMenu === item.key ? "active" : ""}
                       onClick={() => setActiveMenu(item.key)}
                     >
-                      {"> "}{item.label}
+                      {item.label}
                     </button>
                   ))}
                 </div>
@@ -533,43 +533,43 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
         </aside>
 
         {/* Main Content */}
-        <div className="pharmacist-main-area" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div className="doctor-main-area pharmacist-main-area">
           {/* Header Section */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "1rem", borderBottom: "1px solid #ddd" }}>
-            <h2 style={{ margin: 0 }}>
+          <header className="doctor-header pharmacist-header-row">
+            <h2>
               {MENU_GROUPS.flatMap((g) => g.items)
                 .find((item) => item.key === activeMenu)
                 ?.label || "Dashboard"}
             </h2>
-            <span style={{ color: "#64748b", fontWeight: 600 }}>Signed in as: {currentUsername}</span>
-          </div>
+            <p className="dashboard-userline">Signed in as: {currentUsername}</p>
+          </header>
 
           {/* Stats Cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
-            <div className="stat-card" style={{ borderLeft: "4px solid #0066cc" }}>
-              <div className="stat-label">Pending Prescriptions</div>
-              <div className="stat-value">{stats.pendingPrescriptions}</div>
-              <div className="stat-subtitle">Awaiting verification</div>
-            </div>
-            <div className="stat-card" style={{ borderLeft: "4px solid #00aa88" }}>
-              <div className="stat-label">Pending Orders</div>
-              <div className="stat-value">{stats.pendingOrders}</div>
-              <div className="stat-subtitle">Awaiting approval</div>
-            </div>
-            <div className="stat-card" style={{ borderLeft: "4px solid #ff6b35" }}>
-              <div className="stat-label">Low Stock Items</div>
-              <div className="stat-value">{stats.lowStockItems}</div>
-              <div className="stat-subtitle">Require restocking</div>
-            </div>
-            <div className="stat-card" style={{ borderLeft: "4px solid #667eea" }}>
-              <div className="stat-label">Total Inventory</div>
-              <div className="stat-value">{stats.totalInventory}</div>
-              <div className="stat-subtitle">Unique medicines</div>
-            </div>
+          <div className="erp-stats-grid doctor-stats">
+            <article className="erp-stat-card">
+              <h4>Pending Prescriptions</h4>
+              <p>{stats.pendingPrescriptions}</p>
+              <span>Awaiting verification</span>
+            </article>
+            <article className="erp-stat-card">
+              <h4>Pending Orders</h4>
+              <p>{stats.pendingOrders}</p>
+              <span>Awaiting approval</span>
+            </article>
+            <article className="erp-stat-card">
+              <h4>Low Stock Items</h4>
+              <p>{stats.lowStockItems}</p>
+              <span>Require restocking</span>
+            </article>
+            <article className="erp-stat-card">
+              <h4>Total Inventory</h4>
+              <p>{stats.totalInventory}</p>
+              <span>Unique medicines</span>
+            </article>
           </div>
 
           {/* Content Area */}
-          <div style={{ flex: 1, background: "#fff", padding: "1.5rem", borderRadius: "8px", border: "1px solid #e0e0e0" }}>
+          <section className="erp-panel pharmacist-content-panel">
             {/* VIEW PRESCRIPTIONS */}
             {activeMenu === "view-prescriptions" && (
               <div>
@@ -1386,7 +1386,7 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
                 </div>
               </div>
             )}
-          </div>
+          </section>
         </div>
       </div>
     </>

@@ -986,7 +986,7 @@ function PatientModule({ currentUsername = "patient" }) {
                 onClick={() => setOpenGroup((prev) => (prev === group.key ? "" : group.key))}
               >
                 <span>{group.label}</span>
-                <span aria-hidden="true">{openGroup === group.key ? "v" : ">"}</span>
+                <span aria-hidden="true">{openGroup === group.key ? "▼" : "▶"}</span>
               </button>
 
               {openGroup === group.key ? (
@@ -998,7 +998,7 @@ function PatientModule({ currentUsername = "patient" }) {
                       className={activeMenu === item.key ? "active" : ""}
                       onClick={() => setActiveMenu(item.key)}
                     >
-                      {"> "}{item.label}
+                      {item.label}
                     </button>
                   ))}
                 </div>
@@ -1011,8 +1011,8 @@ function PatientModule({ currentUsername = "patient" }) {
       <div className="patient-main-area">
         <header className="doctor-header">
           <h2>{menuTitle}</h2>
-          <p>Manage appointments, records, prescriptions, and payments.</p>
-          <p>Signed in as: {currentUsername}</p>
+          <p className="dashboard-subtitle">Manage appointments, records, prescriptions, and payments.</p>
+          <p className="dashboard-userline">Signed in as: {currentUsername}</p>
         </header>
 
         {uiNotice ? <p className="patient-notice">{uiNotice}</p> : null}

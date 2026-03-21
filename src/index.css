@@ -386,6 +386,10 @@ hr {
   background: #fcfcfd;
   border-radius: 12px;
   padding: 0.85rem;
+  min-height: 136px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .erp-stat-card h4 {
@@ -401,8 +405,19 @@ hr {
 }
 
 .erp-stat-card span {
-  color: #16a34a;
+  color: #64748b;
   font-size: 0.9rem;
+}
+
+.dashboard-subtitle {
+  margin: 0.2rem 0 0;
+  color: #64748b;
+}
+
+.dashboard-userline {
+  margin: 0.2rem 0 0;
+  color: #64748b;
+  font-weight: 600;
 }
 
 .quick-section {

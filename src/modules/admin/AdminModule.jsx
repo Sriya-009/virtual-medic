@@ -2,22 +2,76 @@ import { useEffect, useMemo, useState } from "react";
 
 const MENU_GROUPS = [
   {
-    key: "administration",
-    label: "Administration",
+    key: "dashboard",
+    label: "Admin Dashboard",
     items: [
       { key: "overview", label: "Admin Dashboard" },
-      { key: "system-control", label: "System Control" },
-      { key: "access-permissions", label: "Access & Permissions" },
-      { key: "data-management", label: "Data Management" }
+      { key: "activity-summary", label: "Activity Summary" }
     ]
   },
   {
-    key: "governance",
-    label: "Governance",
+    key: "system-control",
+    label: "System Control",
     items: [
-      { key: "security-management", label: "Security Management" },
-      { key: "monitoring-reports", label: "Monitoring & Reports" },
-      { key: "issue-handling", label: "Issue Handling" }
+      { key: "system-control", label: "Manage System Features" },
+      { key: "app-settings", label: "Configure App Settings" },
+      { key: "module-control", label: "Enable/Disable Modules" }
+    ]
+  },
+  {
+    key: "access-permissions",
+    label: "Access & Permissions",
+    items: [
+      { key: "access-permissions", label: "Access & Permissions" },
+      { key: "assign-permissions", label: "Assign/Revoke Permissions" },
+      { key: "manage-user-roles", label: "Manage User Roles" }
+    ]
+  },
+  {
+    key: "data-management",
+    label: "Data Management",
+    items: [
+      { key: "data-management", label: "View All System Data" },
+      { key: "backup-restore", label: "Backup & Restore" },
+      { key: "data-monitoring", label: "Data Monitoring" }
+    ]
+  },
+  {
+    key: "user-management",
+    label: "User Management",
+    items: [
+      { key: "user-management", label: "Manage Users" }
+    ]
+  },
+  {
+    key: "audit-logs",
+    label: "Audit Logs",
+    items: [
+      { key: "audit-logs", label: "Track User Activities" }
+    ]
+  },
+  {
+    key: "compliance-security",
+    label: "Compliance & Security",
+    items: [
+      { key: "compliance-security", label: "Compliance & Security" }
+    ]
+  },
+  {
+    key: "reports",
+    label: "Reports",
+    items: [
+      { key: "reports", label: "System Reports" }
+    ]
+  },
+  {
+    key: "account",
+    label: "Account",
+    items: [
+      { key: "profile", label: "Profile" },
+      { key: "edit-profile", label: "Edit Profile" },
+      { key: "change-password", label: "Change Password" },
+      { key: "notifications", label: "Notifications" }
     ]
   }
 ];
@@ -81,7 +135,7 @@ const ALL_USERS = [
 
 function AdminModule({ currentUsername = "admin" }) {
   const [activeMenu, setActiveMenu] = useState("overview");
-  const [openGroup, setOpenGroup] = useState("administration");
+  const [openGroup, setOpenGroup] = useState("dashboard");
   const [uiNotice, setUiNotice] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -95,6 +149,13 @@ function AdminModule({ currentUsername = "admin" }) {
     department: "",
     status: "Active"
   });
+  const [adminProfile, setAdminProfile] = useState({
+    name: "Admin User",
+    email: "admin@hospital.com",
+    phone: "+1-555-100-1000",
+    department: "Administration"
+  });
+  const [passwordForm, setPasswordForm] = useState({ current: "", next: "", confirm: "" });
 
   const showNotice = (message) => {
     setUiNotice(message);
@@ -206,7 +267,39 @@ function AdminModule({ currentUsername = "admin" }) {
     showNotice("User deleted.");
   };
 
+  const savePassword = () => {
+    if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
+      showNotice("Please complete all password fields.");
+      return;
+    }
+    if (passwordForm.next !== passwordForm.confirm) {
+      showNotice("New passwords do not match.");
+      return;
+    }
+    if (passwordForm.next.length < 6) {
+      showNotice("Password must be at least 6 characters.");
+      return;
+    }
+    setPasswordForm({ current: "", next: "", confirm: "" });
+    showNotice("Password updated.");
+  };
+
   const renderSection = () => {
+    if (activeMenu === "activity-summary") {
+      return (
+        <section className="erp-panel">
+          <h3>Activity Summary</h3>
+          <p>Recent platform activity and operational summary.</p>
+          <div className="erp-stats-grid">
+            <article className="erp-stat-card"><h4>New Users Today</h4><p>24</p><span>Across all roles</span></article>
+            <article className="erp-stat-card"><h4>Appointments Today</h4><p>138</p><span>All departments</span></article>
+            <article className="erp-stat-card"><h4>Open Tickets</h4><p>11</p><span>Need follow-up</span></article>
+            <article className="erp-stat-card"><h4>Active Sessions</h4><p>287</p><span>Current online users</span></article>
+          </div>
+        </section>
+      );
+    }
+
     if (activeMenu === "system-control") {
       return (
         <section className="erp-panel">
@@ -237,6 +330,38 @@ function AdminModule({ currentUsername = "admin" }) {
           <button className="erp-primary-btn" type="button" onClick={() => showNotice("System settings saved.")}>
             Save System Settings
           </button>
+        </section>
+      );
+    }
+
+    if (activeMenu === "app-settings") {
+      return (
+        <section className="erp-panel">
+          <h3>Configure App Settings</h3>
+          <p>Update app-level settings and behavior controls.</p>
+          <div className="erp-form-grid">
+            <label>System Name<input defaultValue="Medico" /></label>
+            <label>Timezone<input defaultValue="Eastern Time (ET)" /></label>
+            <label>Date Format<input defaultValue="YYYY-MM-DD" /></label>
+            <label>Session Timeout<input defaultValue="30 minutes" /></label>
+          </div>
+          <button className="erp-primary-btn" type="button" onClick={() => showNotice("App settings saved.")}>Save App Settings</button>
+        </section>
+      );
+    }
+
+    if (activeMenu === "module-control") {
+      return (
+        <section className="erp-panel">
+          <h3>Enable / Disable Modules</h3>
+          <p>Control module availability in the platform.</p>
+          <div className="feature-grid">
+            <label><input type="checkbox" defaultChecked /> Doctor Module</label>
+            <label><input type="checkbox" defaultChecked /> Patient Module</label>
+            <label><input type="checkbox" defaultChecked /> Pharmacist Module</label>
+            <label><input type="checkbox" defaultChecked /> Admin Module</label>
+          </div>
+          <button className="erp-primary-btn" type="button" onClick={() => showNotice("Module settings updated.")}>Update Modules</button>
         </section>
       );
     }
@@ -278,6 +403,40 @@ function AdminModule({ currentUsername = "admin" }) {
           <button className="erp-primary-btn" type="button" onClick={() => showNotice("Permissions saved.")}>
             Save Permissions
           </button>
+        </section>
+      );
+    }
+
+    if (activeMenu === "assign-permissions") {
+      return (
+        <section className="erp-panel">
+          <h3>Assign / Revoke Permissions</h3>
+          <p>Grant or revoke role permissions securely.</p>
+          <div className="inline-actions">
+            <button type="button" onClick={() => showNotice("Permissions assigned.")}>Assign Permissions</button>
+            <button type="button" onClick={() => showNotice("Permissions revoked.")}>Revoke Permissions</button>
+          </div>
+          <p>Use the Access & Permissions matrix to configure permission-level control.</p>
+        </section>
+      );
+    }
+
+    if (activeMenu === "manage-user-roles") {
+      return (
+        <section className="erp-panel">
+          <h3>Manage User Roles</h3>
+          <p>Create and update role assignment rules.</p>
+          <div className="table-wrap">
+            <table className="erp-table">
+              <thead><tr><th>Role</th><th>Users</th><th>Action</th></tr></thead>
+              <tbody>
+                <tr><td>Admin</td><td>4</td><td><button type="button" onClick={() => showNotice("Admin role updated.")}>Edit Role</button></td></tr>
+                <tr><td>Doctor</td><td>156</td><td><button type="button" onClick={() => showNotice("Doctor role updated.")}>Edit Role</button></td></tr>
+                <tr><td>Pharmacist</td><td>22</td><td><button type="button" onClick={() => showNotice("Pharmacist role updated.")}>Edit Role</button></td></tr>
+                <tr><td>Patient</td><td>892</td><td><button type="button" onClick={() => showNotice("Patient role updated.")}>Edit Role</button></td></tr>
+              </tbody>
+            </table>
+          </div>
         </section>
       );
     }
@@ -327,6 +486,202 @@ function AdminModule({ currentUsername = "admin" }) {
               </tbody>
             </table>
           </div>
+        </section>
+      );
+    }
+
+    if (activeMenu === "backup-restore") {
+      return (
+        <section className="erp-panel">
+          <h3>Backup & Restore</h3>
+          <p>Run backup and recovery operations.</p>
+          <div className="inline-actions">
+            <button type="button" onClick={() => showNotice("Restore initiated.")}>Restore</button>
+            <button className="erp-primary-btn" type="button" onClick={() => showNotice("Backup started.")}>Backup Now</button>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeMenu === "data-monitoring") {
+      return (
+        <section className="erp-panel">
+          <h3>Data Monitoring</h3>
+          <p>Monitor record updates and table health.</p>
+          <div className="table-wrap">
+            <table className="erp-table">
+              <thead><tr><th>Table</th><th>Records</th><th>Last Updated</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>users</td><td>1,234</td><td>2026-03-21 10:30</td><td>Healthy</td></tr>
+                <tr><td>appointments</td><td>3,450</td><td>2026-03-21 10:05</td><td>Healthy</td></tr>
+                <tr><td>prescriptions</td><td>2,811</td><td>2026-03-21 09:58</td><td>Healthy</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeMenu === "user-management") {
+      return (
+        <section className="erp-panel">
+          <h3>User Management</h3>
+          <p>Add users, edit details, activate/deactivate accounts, and delete users.</p>
+
+          <div className="quick-section">
+            <div className="users-heading-row">
+              <h4>All Users</h4>
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={userSearch}
+                onChange={(event) => setUserSearch(event.target.value)}
+              />
+            </div>
+
+            <div className="table-wrap">
+              <table className="erp-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Department</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedUsers.length > 0 ? (
+                    paginatedUsers.map((user) => (
+                      <tr key={`${user.email}-${user.role}`}>
+                        <td>{user.name}</td>
+                        <td>{user.email}</td>
+                        <td>{user.role}</td>
+                        <td>{user.department}</td>
+                        <td>
+                          <span className={user.status === "Active" ? "status-badge active" : "status-badge inactive"}>
+                            {user.status}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="table-actions">
+                            <button type="button" onClick={() => startEditUser(user)}>Edit</button>
+                            <button type="button" className="danger" onClick={() => setDeleteUserEmail(user.email)}>Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan="6">No users found for this search.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeMenu === "audit-logs") {
+      return (
+        <section className="erp-panel">
+          <h3>Audit Logs</h3>
+          <p>Track user activities and monitor system usage.</p>
+          <ul className="alert-list">
+            <li>11:45 - Admin exported monthly report</li>
+            <li>10:50 - Doctor role permissions updated</li>
+            <li>09:35 - Backup completed successfully</li>
+          </ul>
+        </section>
+      );
+    }
+
+    if (activeMenu === "compliance-security") {
+      return (
+        <section className="erp-panel">
+          <h3>Compliance & Security</h3>
+          <p>Manage data protection settings, security policies, and access logs.</p>
+          <div className="feature-grid">
+            <label><input type="checkbox" defaultChecked /> Data Encryption Enabled</label>
+            <label><input type="checkbox" defaultChecked /> Retention Policy Active</label>
+            <label><input type="checkbox" defaultChecked /> Access Log Monitoring</label>
+            <label><input type="checkbox" defaultChecked /> Security Alerts Enabled</label>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeMenu === "reports") {
+      return (
+        <section className="erp-panel">
+          <h3>Reports</h3>
+          <p>Generate system reports, usage analytics, and performance reports.</p>
+          <div className="inline-actions">
+            <button type="button" onClick={() => showNotice("System report exported.")}>System Reports</button>
+            <button type="button" onClick={() => showNotice("Usage analytics exported.")}>Usage Analytics</button>
+            <button className="erp-primary-btn" type="button" onClick={() => showNotice("Performance report generated.")}>Performance Reports</button>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeMenu === "profile") {
+      return (
+        <section className="erp-panel">
+          <h3>Profile</h3>
+          <p>View account profile details.</p>
+          <div className="erp-form-grid">
+            <label>Name<input value={adminProfile.name} readOnly /></label>
+            <label>Email<input value={adminProfile.email} readOnly /></label>
+            <label>Phone<input value={adminProfile.phone} readOnly /></label>
+            <label>Department<input value={adminProfile.department} readOnly /></label>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeMenu === "edit-profile") {
+      return (
+        <section className="erp-panel">
+          <h3>Edit Profile</h3>
+          <p>Update account profile fields.</p>
+          <div className="erp-form-grid">
+            <label>Name<input value={adminProfile.name} onChange={(e) => setAdminProfile((p) => ({ ...p, name: e.target.value }))} /></label>
+            <label>Email<input value={adminProfile.email} onChange={(e) => setAdminProfile((p) => ({ ...p, email: e.target.value }))} /></label>
+            <label>Phone<input value={adminProfile.phone} onChange={(e) => setAdminProfile((p) => ({ ...p, phone: e.target.value }))} /></label>
+            <label>Department<input value={adminProfile.department} onChange={(e) => setAdminProfile((p) => ({ ...p, department: e.target.value }))} /></label>
+          </div>
+          <button className="erp-primary-btn" type="button" onClick={() => showNotice("Profile updated.")}>Save Profile</button>
+        </section>
+      );
+    }
+
+    if (activeMenu === "change-password") {
+      return (
+        <section className="erp-panel">
+          <h3>Change Password</h3>
+          <p>Update account password.</p>
+          <div className="erp-form-grid">
+            <label>Current Password<input type="password" value={passwordForm.current} onChange={(e) => setPasswordForm((p) => ({ ...p, current: e.target.value }))} /></label>
+            <label>New Password<input type="password" value={passwordForm.next} onChange={(e) => setPasswordForm((p) => ({ ...p, next: e.target.value }))} /></label>
+            <label>Confirm Password<input type="password" value={passwordForm.confirm} onChange={(e) => setPasswordForm((p) => ({ ...p, confirm: e.target.value }))} /></label>
+          </div>
+          <button className="erp-primary-btn" type="button" onClick={savePassword}>Change Password</button>
+        </section>
+      );
+    }
+
+    if (activeMenu === "notifications") {
+      return (
+        <section className="erp-panel">
+          <h3>Notifications</h3>
+          <p>Admin alerts and important system updates.</p>
+          <ul className="alert-list">
+            <li>3 open support tickets need review</li>
+            <li>Daily backup completed successfully</li>
+            <li>2 users requested account reactivation</li>
+          </ul>
         </section>
       );
     }
@@ -424,8 +779,8 @@ function AdminModule({ currentUsername = "admin" }) {
           <h4>Quick Actions</h4>
           <div className="inline-actions">
             <button type="button" onClick={() => setActiveMenu("access-permissions")}>Manage Role Access</button>
-            <button type="button" onClick={() => setActiveMenu("data-management")}>Backup & Restore</button>
-            <button type="button" onClick={() => setActiveMenu("issue-handling")}>Resolve Open Tickets</button>
+            <button type="button" onClick={() => setActiveMenu("backup-restore")}>Backup & Restore</button>
+            <button type="button" onClick={() => setActiveMenu("audit-logs")}>Audit Logs</button>
           </div>
         </div>
 
@@ -543,7 +898,7 @@ function AdminModule({ currentUsername = "admin" }) {
                 onClick={() => setOpenGroup((prev) => (prev === group.key ? "" : group.key))}
               >
                 <span>{group.label}</span>
-                <span aria-hidden="true">{openGroup === group.key ? "v" : ">"}</span>
+                <span aria-hidden="true">{openGroup === group.key ? "▼" : "▶"}</span>
               </button>
               {openGroup === group.key ? (
                 <div className="erp-group-items admin-erp-group-items">
@@ -554,7 +909,7 @@ function AdminModule({ currentUsername = "admin" }) {
                       className={activeMenu === item.key ? "active" : ""}
                       onClick={() => setActiveMenu(item.key)}
                     >
-                      {"> "}{item.label}
+                      {item.label}
                     </button>
                   ))}
                 </div>
@@ -567,8 +922,8 @@ function AdminModule({ currentUsername = "admin" }) {
       <div className="admin-main-area">
         <header className="admin-title-row">
           <h2>{menuTitle}</h2>
-          <p>Medico Administration</p>
-          <p>Signed in as: {currentUsername}</p>
+          <p className="dashboard-subtitle">Medico Administration</p>
+          <p className="dashboard-userline">Signed in as: {currentUsername}</p>
         </header>
         {uiNotice ? <p className="admin-notice">{uiNotice}</p> : null}
         {renderSection()}

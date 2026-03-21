@@ -2,36 +2,113 @@ import { useEffect, useMemo, useState } from "react";
 
 const MENU_GROUPS = [
   {
-    key: "care-access",
-    label: "Care Access",
-    mainMenu: "home",
+    key: "doctor-search-main",
+    label: "Doctor Search",
+    mainMenu: "doctor-search",
     items: [
-      { key: "home", label: "Home" },
-      { key: "doctor-search", label: "Doctor Search" },
-      { key: "appointment-booking", label: "Appointment Booking" },
-      { key: "virtual-consultation", label: "Virtual Consultation" }
+      {
+        key: "doctor-search-by",
+        label: "Search doctors by",
+        targetMenu: "doctor-search",
+        children: ["Specialization", "Name", "Availability"]
+      },
+      {
+        key: "doctor-profiles",
+        label: "View doctor profiles",
+        targetMenu: "doctor-search",
+        children: ["Experience", "Ratings"]
+      }
     ]
   },
   {
-    key: "records-finance",
-    label: "Records & Finance",
+    key: "appointment-booking-main",
+    label: "Appointment Booking",
+    mainMenu: "appointment-booking",
+    items: [
+      { key: "book-appointments", label: "Book appointments with doctors", targetMenu: "appointment-booking" },
+      { key: "select-slot", label: "Select date & time slot", targetMenu: "appointment-booking" },
+      { key: "upcoming-appointments", label: "View upcoming appointments", targetMenu: "appointment-booking" },
+      { key: "cancel-reschedule", label: "Cancel/reschedule appointments", targetMenu: "appointment-booking" }
+    ]
+  },
+  {
+    key: "virtual-consultation-main",
+    label: "Virtual Consultation",
+    mainMenu: "virtual-consultation",
+    items: [
+      { key: "join-consultation", label: "Join online consultation (video/chat)", targetMenu: "virtual-consultation" },
+      { key: "communicate-symptoms", label: "Communicate symptoms to doctor", targetMenu: "virtual-consultation" }
+    ]
+  },
+  {
+    key: "medical-records-main",
+    label: "Medical Records",
     mainMenu: "medical-records",
     items: [
-      { key: "medical-records", label: "Medical Records" },
-      { key: "prescriptions", label: "Prescriptions" },
-      { key: "payment-history", label: "Payment History" },
-      { key: "billing", label: "Billing" }
+      { key: "view-history", label: "View personal medical history", targetMenu: "medical-records" },
+      {
+        key: "access-records",
+        label: "Access",
+        targetMenu: "medical-records",
+        children: ["Diagnoses", "Prescriptions"]
+      },
+      { key: "download-reports", label: "Download reports", targetMenu: "medical-records" }
     ]
   },
   {
-    key: "account",
-    label: "Account",
-    mainMenu: "profile",
+    key: "prescription-main",
+    label: "Prescription & Medicines",
+    mainMenu: "prescriptions",
     items: [
-      { key: "profile", label: "Profile" },
-      { key: "edit-profile", label: "Edit Profile" },
-      { key: "change-password", label: "Change Password" },
-      { key: "notifications", label: "Notifications" }
+      { key: "receive-prescriptions", label: "Receive prescriptions from doctor", targetMenu: "prescriptions" },
+      { key: "send-to-pharmacist", label: "Send prescription to pharmacist", targetMenu: "prescriptions" },
+      { key: "order-medicines", label: "Order medicines", targetMenu: "prescriptions" }
+    ]
+  },
+  {
+    key: "payment-management-main",
+    label: "Payment Management",
+    mainMenu: "billing",
+    items: [
+      {
+        key: "make-payments",
+        label: "Make payments for",
+        targetMenu: "billing",
+        children: ["Consultation", "Medicines"]
+      },
+      {
+        key: "view-payment-history",
+        label: "View payment history",
+        targetMenu: "payment-history"
+      }
+    ]
+  },
+  {
+    key: "notifications-main",
+    label: "Notifications",
+    mainMenu: "notifications",
+    items: [
+      {
+        key: "alerts",
+        label: "Get alerts for",
+        targetMenu: "notifications",
+        children: ["Appointment confirmation", "Prescription updates", "Payment status"]
+      }
+    ]
+  },
+  {
+    key: "profile-management-main",
+    label: "Profile Management",
+    mainMenu: "edit-profile",
+    items: [
+      {
+        key: "update-details",
+        label: "Update personal details",
+        targetMenu: "edit-profile",
+        children: ["Name", "Contact info", "Medical info"]
+      },
+      { key: "view-profile", label: "View profile", targetMenu: "profile" },
+      { key: "change-password", label: "Change Password", targetMenu: "change-password" }
     ]
   },
   {
@@ -39,9 +116,9 @@ const MENU_GROUPS = [
     label: "Support",
     mainMenu: "help-faq",
     items: [
-      { key: "help-faq", label: "Help / FAQ" },
-      { key: "contact-support", label: "Contact Support" },
-      { key: "report-issue", label: "Report Issue" }
+      { key: "help-faq", label: "Help / FAQ", targetMenu: "help-faq" },
+      { key: "contact-support", label: "Contact Support", targetMenu: "contact-support" },
+      { key: "report-issue", label: "Report Issue", targetMenu: "report-issue" }
     ]
   }
 ];
@@ -163,10 +240,16 @@ function normalizeAppointment(entry) {
 
 function PatientModule({ currentUsername = "patient" }) {
   const [activeMenu, setActiveMenu] = useState("home");
+  const [activeSubNavKey, setActiveSubNavKey] = useState("");
   const [openGroups, setOpenGroups] = useState({
-    "care-access": true,
-    "records-finance": true,
-    account: true,
+    "doctor-search-main": true,
+    "appointment-booking-main": true,
+    "virtual-consultation-main": true,
+    "medical-records-main": true,
+    "prescription-main": true,
+    "payment-management-main": true,
+    "notifications-main": true,
+    "profile-management-main": true,
     support: true
   });
   const [uiNotice, setUiNotice] = useState("");
@@ -226,9 +309,19 @@ function PatientModule({ currentUsername = "patient" }) {
   const currentPatientName = profile.name.trim() || "John Doe";
 
   const menuTitle = useMemo(() => {
-    const item = MENU_GROUPS.flatMap((group) => group.items).find((entry) => entry.key === activeMenu);
+    if (activeSubNavKey) {
+      const sub = MENU_GROUPS.flatMap((group) => group.items).find((entry) => entry.key === activeSubNavKey);
+      if (sub) {
+        return sub.label;
+      }
+    }
+    const group = MENU_GROUPS.find((entry) => entry.mainMenu === activeMenu);
+    if (group) {
+      return group.label;
+    }
+    const item = MENU_GROUPS.flatMap((entry) => entry.items).find((entry) => entry.targetMenu === activeMenu);
     return item ? item.label : "Patient Dashboard";
-  }, [activeMenu]);
+  }, [activeMenu, activeSubNavKey]);
 
   const filteredDoctors = useMemo(() => {
     const query = doctorSearch.text.trim().toLowerCase();
@@ -1194,6 +1287,7 @@ function PatientModule({ currentUsername = "patient" }) {
                 type="button"
                 className="erp-group-btn patient-erp-group-btn"
                 onClick={() => {
+                  setActiveSubNavKey("");
                   setActiveMenu(group.mainMenu);
                   setOpenGroups((prev) => ({
                     ...prev,
@@ -1208,14 +1302,25 @@ function PatientModule({ currentUsername = "patient" }) {
               {openGroups[group.key] ? (
                 <div className="erp-group-items patient-erp-group-items">
                   {group.items.map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      className={activeMenu === item.key ? "active" : ""}
-                      onClick={() => setActiveMenu(item.key)}
-                    >
-                      {item.label}
-                    </button>
+                    <div key={item.key}>
+                      <button
+                        type="button"
+                        className={activeSubNavKey === item.key ? "active" : ""}
+                        onClick={() => {
+                          setActiveSubNavKey(item.key);
+                          setActiveMenu(item.targetMenu || item.key);
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                      {item.children ? (
+                        <div className="erp-subpoints">
+                          {item.children.map((point) => (
+                            <p key={`${item.key}-${point}`}>. {point}</p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   ))}
                 </div>
               ) : null}

@@ -305,6 +305,44 @@ function DoctorModule({ currentUsername = "doctor" }) {
     return group ? group.label : "Doctor Dashboard";
   }, [activeTab]);
 
+  const handleMainNavClick = (group) => {
+    setActiveTab(group.mainTab);
+    setActiveSubNavKey("");
+    setOpenGroups((prev) => ({
+      ...prev,
+      [group.key]: true
+    }));
+  };
+
+  const handleSubNavClick = (subItem) => {
+    setActiveSubNavKey(subItem.key);
+    setActiveTab(subItem.targetTab);
+
+    if (subItem.key === "profile-edit") {
+      setIsEditingProfile(true);
+    }
+    if (subItem.key === "profile-view") {
+      setIsEditingProfile(false);
+    }
+    if (subItem.key === "notifications-messages") {
+      setShowMessagesPanel(true);
+    }
+    if (subItem.key === "notifications-appointment-alerts") {
+      setShowMessagesPanel(false);
+    }
+  };
+
+  const isSubSectionVisible = (keys) => {
+    if (!activeSubNavKey) {
+      return true;
+    }
+    const selected = TABS.flatMap((group) => group.items).find((item) => item.key === activeSubNavKey);
+    if (!selected || selected.targetTab !== activeTab) {
+      return true;
+    }
+    return keys.includes(activeSubNavKey);
+  };
+
   const doctorAppointments = useMemo(
     () => appointmentRows.filter((entry) => entry.doctorName === CURRENT_DOCTOR_NAME),
     [appointmentRows]
@@ -669,14 +707,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
               <button
                 type="button"
                 className="erp-group-btn doctor-erp-group-btn"
-                onClick={() => {
-                  setActiveTab(group.mainTab);
-                  setActiveSubNavKey("");
-                  setOpenGroups((prev) => ({
-                    ...prev,
-                    [group.key]: !prev[group.key]
-                  }));
-                }}
+                onClick={() => handleMainNavClick(group)}
               >
                 <span>{group.label}</span>
                 <span aria-hidden="true">{openGroups[group.key] ? "▼" : "▶"}</span>
@@ -689,10 +720,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
                       key={tab.key}
                       type="button"
                       className={activeSubNavKey === tab.key ? "active" : ""}
-                      onClick={() => {
-                        setActiveSubNavKey(tab.key);
-                        setActiveTab(tab.targetTab);
-                      }}
+                      onClick={() => handleSubNavClick(tab)}
                     >
                       {tab.label}
                     </button>
@@ -767,6 +795,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
             <p>View upcoming and past appointments and handle requests.</p>
 
             <div className="doctor-split-grid">
+              {isSubSectionVisible(["appointments-upcoming", "appointments-requests"]) ? (
               <article className="quick-section">
                 <h4>Upcoming Appointments</h4>
                 <div className="table-wrap">
@@ -815,7 +844,9 @@ function DoctorModule({ currentUsername = "doctor" }) {
                   </table>
                 </div>
               </article>
+              ) : null}
 
+              {isSubSectionVisible(["appointments-past"]) ? (
               <article className="quick-section">
                 <h4>Past / History</h4>
                 <div className="table-wrap">
@@ -843,8 +874,10 @@ function DoctorModule({ currentUsername = "doctor" }) {
                   </table>
                 </div>
               </article>
+              ) : null}
             </div>
 
+            {isSubSectionVisible(["appointments-schedule"]) ? (
             <div className="quick-section">
               <h4>Manage Schedule</h4>
               <div className="erp-form-grid">
@@ -910,6 +943,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 </table>
               </div>
             </div>
+            ) : null}
 
           </section>
         ) : null}
@@ -919,6 +953,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
             <h3>Availability Settings</h3>
             <p>Set working hours and manage consultation slots.</p>
 
+            {isSubSectionVisible(["availability-working-hours"]) ? (
             <div className="quick-section">
               <h4>Set Working Hours</h4>
               <div className="erp-form-grid">
@@ -948,7 +983,9 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 </label>
               </div>
             </div>
+            ) : null}
 
+            {isSubSectionVisible(["availability-manage-slots"]) ? (
             <div className="quick-section">
               <h4>Manage Slots</h4>
               <div className="erp-form-grid">
@@ -966,6 +1003,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 </label>
               </div>
             </div>
+            ) : null}
 
             <button className="erp-primary-btn" type="button" onClick={saveAvailabilitySettings}>
               Save Availability Settings
@@ -978,6 +1016,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
             <h3>Patient Interaction</h3>
             <p>View patient details, run virtual consultations, and communicate with patients.</p>
 
+            {isSubSectionVisible(["interaction-details", "interaction-virtual"]) ? (
             <div className="users-heading-row">
               <h4>Patients</h4>
               <input
@@ -987,7 +1026,9 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 onChange={(event) => setPatientSearch(event.target.value)}
               />
             </div>
+            ) : null}
 
+            {isSubSectionVisible(["interaction-details", "interaction-virtual"]) ? (
             <div className="doctor-cards-grid">
               {filteredPatients.map((patient) => (
                 <article key={patient.id} className="doctor-card">
@@ -1006,6 +1047,32 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 </article>
               ))}
             </div>
+            ) : null}
+
+            {isSubSectionVisible(["interaction-chat"]) ? (
+              <div className="quick-section">
+                <h4>Chat / Communication</h4>
+                <div className="erp-form-grid">
+                  <label>
+                    Patient
+                    <select value={selectedPatientId} onChange={(event) => setSelectedPatientId(event.target.value)}>
+                      {PATIENTS.map((patient) => (
+                        <option key={patient.id} value={patient.id}>{patient.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label style={{ gridColumn: "1 / -1" }}>
+                    Message
+                    <input
+                      value={messageDraft}
+                      onChange={(event) => setMessageDraft(event.target.value)}
+                      placeholder="Type message for selected patient"
+                    />
+                  </label>
+                </div>
+                <button className="erp-primary-btn" type="button" onClick={sendDoctorMessage}>Send Message</button>
+              </div>
+            ) : null}
           </section>
         ) : null}
 
@@ -1014,6 +1081,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
             <h3>Medical Records Management</h3>
             <p>Access and update diagnosis, symptoms, and notes for each patient.</p>
 
+            {isSubSectionVisible(["records-history"]) ? (
             <div className="quick-section">
               <h4>View Patient History</h4>
               <div className="table-wrap">
@@ -1039,7 +1107,9 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 </table>
               </div>
             </div>
+            ) : null}
 
+            {isSubSectionVisible(["records-diagnosis", "records-notes"]) ? (
             <div className="erp-form-grid">
               <label>
                 Select Patient
@@ -1070,6 +1140,8 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 />
               </label>
             </div>
+            ) : null}
+            {isSubSectionVisible(["records-notes", "records-diagnosis"]) ? (
             <label className="doctor-notes-label">
               Notes
               <textarea
@@ -1079,10 +1151,14 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 placeholder="Add consultation notes"
               />
             </label>
+            ) : null}
+            {isSubSectionVisible(["records-diagnosis", "records-notes"]) ? (
             <button className="erp-primary-btn" type="button" onClick={saveMedicalRecord}>
               Update Patient Record
             </button>
+            ) : null}
 
+            {isSubSectionVisible(["records-diagnosis", "records-notes"]) ? (
             <div className="quick-section">
               <h4>Saved Record Updates</h4>
               <div className="table-wrap">
@@ -1116,6 +1192,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 </table>
               </div>
             </div>
+            ) : null}
           </section>
         ) : null}
 
@@ -1124,6 +1201,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
             <h3>Prescription Management</h3>
             <p>Create digital prescriptions and send to patient and pharmacist.</p>
 
+            {isSubSectionVisible(["prescriptions-create", "prescriptions-send", "prescriptions-edit"]) ? (
             <div className="erp-form-grid">
               <label>
                 Patient
@@ -1163,7 +1241,9 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 />
               </label>
             </div>
+            ) : null}
 
+            {isSubSectionVisible(["prescriptions-send", "prescriptions-create", "prescriptions-edit"]) ? (
             <div className="feature-grid doctor-send-grid">
               <label>
                 <input
@@ -1184,11 +1264,15 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 Send to Pharmacist
               </label>
             </div>
+            ) : null}
 
+            {isSubSectionVisible(["prescriptions-create", "prescriptions-send", "prescriptions-edit"]) ? (
             <button className="erp-primary-btn" type="button" onClick={createPrescription}>
               {editingPrescriptionId ? "Save Prescription Changes" : "Create and Send Prescription"}
             </button>
+            ) : null}
 
+            {isSubSectionVisible(["prescriptions-edit"]) ? (
             <div className="quick-section">
               <h4>Saved Prescriptions</h4>
               <div className="table-wrap">
@@ -1230,6 +1314,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 </table>
               </div>
             </div>
+            ) : null}
           </section>
         ) : null}
 
@@ -1238,6 +1323,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
             <h3>Reports & Tracking</h3>
             <p>Track patients handled, consultation history, and treatment records.</p>
 
+            {isSubSectionVisible(["reports-performance-stats"]) ? (
             <div className="erp-stats-grid doctor-stats-3">
               <article className="erp-stat-card">
                 <h4>Patients Handled (Month)</h4>
@@ -1255,7 +1341,9 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 <span>Currently monitored</span>
               </article>
             </div>
+            ) : null}
 
+            {isSubSectionVisible(["reports-consultation-history"]) ? (
             <div className="table-wrap">
               <table className="erp-table">
                 <thead>
@@ -1278,6 +1366,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 </tbody>
               </table>
             </div>
+            ) : null}
           </section>
         ) : null}
 

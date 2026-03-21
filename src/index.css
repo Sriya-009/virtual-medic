@@ -1,3 +1,511 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+:root {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: #0f172a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(160deg, #e9e3eb 0%, #f2f2f2 38%, #ede7ed 100%);
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1rem;
+}
+
+.login-card {
+  width: min(560px, 100%);
+  background: #f5f5f5;
+  border: 1px solid #dedede;
+  border-radius: 18px;
+  padding: 2rem;
+  box-shadow: 0 18px 44px rgba(24, 24, 27, 0.1);
+}
+
+.brand-badge {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  margin: -58px auto 1.25rem;
+  display: grid;
+  place-items: center;
+  font-size: 2rem;
+  color: #fff;
+  background: #e01464;
+  box-shadow: 0 10px 24px rgba(224, 20, 100, 0.4);
+}
+
+.login-card h1 {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(1.65rem, 2.4vw, 2.1rem);
+}
+
+.subtitle {
+  text-align: center;
+  margin: 0.75rem 0 1.75rem;
+  color: #64748b;
+  font-size: 1.15rem;
+}
+
+form label {
+  display: block;
+  margin-bottom: 0.55rem;
+  font-weight: 700;
+  font-size: 1.08rem;
+}
+
+input,
+select {
+  width: 100%;
+  border: 1px solid transparent;
+  background: #ebebed;
+  border-radius: 11px;
+  padding: 0.9rem 1rem;
+  font-size: 1.05rem;
+  margin-bottom: 1rem;
+}
+
+input:focus,
+select:focus {
+  border-color: #d61f73;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(214, 31, 115, 0.15);
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.link-btn {
+  border: 0;
+  background: none;
+  color: #d61f73;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.remember-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0.2rem 0 1.1rem;
+  font-weight: 500;
+}
+
+.remember-row input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #d61f73;
+}
+
+.primary-btn {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 0.92rem 1rem;
+  background: #e01464;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.6rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.primary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(224, 20, 100, 0.32);
+}
+
+.form-error {
+  color: #b91c1c;
+  margin: 0 0 0.85rem;
+  font-weight: 600;
+}
+
+.signup-copy {
+  text-align: center;
+  margin: 1.15rem 0;
+  font-size: 1.05rem;
+}
+
+.signup-copy button {
+  border: none;
+  background: none;
+  color: #d61f73;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: inherit;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid #d7d7d7;
+  margin: 1.25rem 0 1.1rem;
+}
+
+.demo-section h2 {
+  text-align: center;
+  margin: 0 0 0.9rem;
+  color: #243b5a;
+  font-size: 1.9rem;
+}
+
+.demo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.95rem;
+}
+
+.demo-card {
+  background: #e9e1e7;
+  border: 1px solid #e2cdda;
+  border-radius: 12px;
+  padding: 0.85rem 0.95rem;
+}
+
+.demo-card h3 {
+  margin: 0 0 0.35rem;
+  color: #d61f73;
+  font-size: 1.1rem;
+}
+
+.demo-card p {
+  margin: 0;
+  color: #334155;
+  font-size: 1rem;
+}
+
+.dashboard-shell {
+  min-height: 100vh;
+  padding: 1.5rem;
+  background: radial-gradient(circle at top right, #ede9fe 0, #f8fafc 45%, #e2f5ec 100%);
+}
+
+.dashboard-topbar {
+  max-width: 1280px;
+  margin: 0 auto 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dashboard-topbar h1 {
+  margin: 0;
+}
+
+.dashboard-role {
+  margin: 0 0 0.2rem;
+  color: #6366f1;
+  font-weight: 700;
+}
+
+.dashboard-content {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.logout-btn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.module-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.25rem;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.module-card h2 {
+  margin-top: 0;
+}
+
+.module-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  line-height: 1.8;
+}
+
+.admin-erp-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1rem;
+  min-height: calc(100vh - 130px);
+}
+
+.admin-left-panel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 1rem;
+  position: sticky;
+  top: 1rem;
+  height: fit-content;
+}
+
+.admin-left-panel h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.admin-left-panel p {
+  margin: 0.2rem 0 1rem;
+  color: #64748b;
+}
+
+.admin-left-panel nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.admin-left-panel button {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 0.7rem 0.8rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.admin-left-panel button.active {
+  background: #e01464;
+  border-color: #e01464;
+  color: #fff;
+}
+
+.admin-main-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.admin-title-row h2 {
+  margin: 0;
+}
+
+.admin-title-row p {
+  margin: 0.2rem 0 0;
+  color: #64748b;
+}
+
+.erp-panel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 1rem;
+}
+
+.erp-panel h3 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.erp-panel > p {
+  margin: 0.3rem 0 1rem;
+  color: #64748b;
+}
+
+.erp-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.erp-stat-card {
+  border: 1px solid #e5e7eb;
+  background: #fcfcfd;
+  border-radius: 12px;
+  padding: 0.85rem;
+}
+
+.erp-stat-card h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #64748b;
+}
+
+.erp-stat-card p {
+  margin: 0.5rem 0 0.2rem;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.erp-stat-card span {
+  color: #16a34a;
+  font-size: 0.9rem;
+}
+
+.quick-section {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0.85rem;
+  margin-top: 0.8rem;
+}
+
+.quick-section h4 {
+  margin: 0 0 0.7rem;
+}
+
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+}
+
+.inline-actions button,
+.erp-panel button {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 10px;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.erp-primary-btn {
+  border-color: #e01464 !important;
+  background: #e01464 !important;
+  color: #fff;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-bottom: 0.9rem;
+}
+
+.feature-grid label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
+  font-weight: 600;
+}
+
+.feature-grid input,
+.erp-table input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #e01464;
+}
+
+.erp-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+
+.erp-form-grid label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 700;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 0.7rem;
+}
+
+.erp-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+.erp-table th,
+.erp-table td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.55rem;
+  text-align: left;
+}
+
+.erp-table th {
+  color: #475569;
+  background: #f8fafc;
+}
+
+.alert-list {
+  margin: 0.6rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.alert-list li {
+  margin-bottom: 0.35rem;
+}
+
+@media (max-width: 680px) {
+  .login-card {
+    padding: 1.25rem;
+  }
+
+  .demo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 1100px) {
+  .admin-erp-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-left-panel {
+    position: static;
+  }
+
+  .admin-left-panel nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .erp-stats-grid,
+  .erp-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .admin-left-panel nav {
+    grid-template-columns: 1fr;
+  }
+
+  .erp-stats-grid,
+  .erp-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -165,9 +165,10 @@ function normalizePrescription(entry) {
   };
 }
 
-function PharmacistModule() {
+function PharmacistModule({ currentUsername = "pharmacist" }) {
   const [activeMenu, setActiveMenu] = useState("view-prescriptions");
   const [openGroup, setOpenGroup] = useState("prescriptions");
+  const [uiNotice, setUiNotice] = useState("");
 
   // Prescriptions data
   const [prescriptions, setPrescriptions] = useState(() => {
@@ -221,6 +222,11 @@ function PharmacistModule() {
     });
   });
 
+  const showNotice = (message) => {
+    setUiNotice(message);
+    window.setTimeout(() => setUiNotice(""), 2500);
+  };
+
   // Persist data to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.prescriptions, JSON.stringify(prescriptions));
@@ -250,7 +256,7 @@ function PharmacistModule() {
   // Prescription verification
   const handleVerifyPrescription = () => {
     if (!verificationForm.prescriptionId || !verificationForm.approved) {
-      alert("Please select a prescription and approve it");
+      showNotice("Please select a prescription and approve it.");
       return;
     }
 
@@ -259,14 +265,14 @@ function PharmacistModule() {
       const updatedPresc = { ...presc, status: "Verified by Pharmacist" };
       setApprovedPrescriptions((prev) => [...prev, updatedPresc]);
       setVerificationForm({ prescriptionId: "", verificationNotes: "", approved: false });
-      alert("Prescription verified successfully!");
+      showNotice("Prescription verified successfully.");
     }
   };
 
   // Order management
   const handleOrderAction = () => {
     if (!orderAction.orderId || !orderAction.action) {
-      alert("Please select an order and action");
+      showNotice("Please select an order and action.");
       return;
     }
 
@@ -277,37 +283,47 @@ function PharmacistModule() {
           : o
       )
     );
+    const actionLabel =
+      orderAction.action === "accept" ? "approved" : orderAction.action === "dispatch" ? "dispatched" : "rejected";
     setOrderAction({ orderId: "", action: "", notes: "" });
-    alert(`Order ${orderAction.action === "accept" ? "approved" : "rejected"}!`);
+    showNotice(`Order ${actionLabel}.`);
   };
 
   // Update inventory
   const handleInventoryUpdate = () => {
     if (!inventoryForm.medicineId || !inventoryForm.quantity || !inventoryForm.action) {
-      alert("Please fill all fields");
+      showNotice("Please fill all fields.");
       return;
     }
 
-    const qty = parseInt(inventoryForm.quantity);
+    const qty = parseInt(inventoryForm.quantity, 10);
+    if (Number.isNaN(qty) || qty <= 0) {
+      showNotice("Quantity must be a positive number.");
+      return;
+    }
+
     setInventory((prev) =>
       prev.map((med) =>
         med.id === inventoryForm.medicineId
-          ? {
-              ...med,
-              stock: inventoryForm.action === "add" ? med.stock + qty : Math.max(0, med.stock - qty),
-              status: med.stock - qty <= med.minStock ? "Low Stock" : "In Stock"
-            }
+          ? (() => {
+              const updatedStock = inventoryForm.action === "add" ? med.stock + qty : Math.max(0, med.stock - qty);
+              return {
+                ...med,
+                stock: updatedStock,
+                status: updatedStock <= med.minStock ? "Low Stock" : "In Stock"
+              };
+            })()
           : med
       )
     );
     setInventoryForm({ medicineId: "", quantity: "", action: "" });
-    alert("Inventory updated!");
+    showNotice("Inventory updated.");
   };
 
   // Dispense medicine
   const handleDispenseMedicine = () => {
     if (!dispensingForm.orderId) {
-      alert("Please select an order");
+      showNotice("Please select an order.");
       return;
     }
 
@@ -331,14 +347,14 @@ function PharmacistModule() {
       ]);
 
       setDispensingForm({ orderId: "", dispensingNotes: "" });
-      alert("Medicine dispensed successfully!");
+      showNotice("Medicine dispensed successfully.");
     }
   };
 
   // Verify payment
   const handleVerifyPayment = () => {
     if (!paymentForm.orderId) {
-      alert("Please select an order");
+      showNotice("Please select an order.");
       return;
     }
 
@@ -346,12 +362,12 @@ function PharmacistModule() {
       prev.map((o) => (o.id === paymentForm.orderId ? { ...o, paymentStatus: "Verified" } : o))
     );
     setPaymentForm({ orderId: "", verificationNotes: "" });
-    alert("Payment verified!");
+    showNotice("Payment verified.");
   };
 
   const handleAddMedicine = () => {
     if (!addMedicineForm.name.trim() || !addMedicineForm.stock || !addMedicineForm.expiryDate) {
-      alert("Please enter medicine name, stock, and expiry date");
+      showNotice("Please enter medicine name, stock, and expiry date.");
       return;
     }
 
@@ -381,6 +397,7 @@ function PharmacistModule() {
       expiryDate: "",
       price: ""
     });
+    showNotice("Medicine added to inventory.");
   };
 
   const removeExpiredItems = () => {
@@ -391,25 +408,34 @@ function PharmacistModule() {
       removedCount = prev.length - filtered.length;
       return filtered;
     });
-    alert(`${removedCount} expired item(s) removed.`);
+    showNotice(`${removedCount} expired item(s) removed.`);
   };
 
   const handlePasswordChange = () => {
     if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
-      alert("Please complete all password fields");
+      showNotice("Please complete all password fields.");
       return;
     }
     if (passwordForm.next !== passwordForm.confirm) {
-      alert("New passwords do not match");
+      showNotice("New passwords do not match.");
       return;
     }
     if (passwordForm.next.length < 6) {
-      alert("New password must be at least 6 characters");
+      showNotice("New password must be at least 6 characters.");
       return;
     }
 
-    alert("Password changed successfully");
+    showNotice("Password changed successfully.");
     setPasswordForm({ current: "", next: "", confirm: "" });
+  };
+
+  const saveProfileEdits = () => {
+    if (!profile.name.trim() || !profile.email.trim() || !profile.phone.trim()) {
+      showNotice("Please complete name, email, and phone.");
+      return;
+    }
+
+    showNotice("Profile updated successfully.");
   };
 
   // Computed values
@@ -458,30 +484,37 @@ function PharmacistModule() {
 
   return (
     <>
-      <div className="patient-erp-shell">
+      <div className="patient-erp-shell pharmacist-erp-shell">
         {/* Left Sidebar */}
-        <nav className="erp-side-nav">
+        <aside className="patient-left-panel pharmacist-left-panel">
+          <h2>Pharmacist Portal</h2>
+          <p>ERP Navigation</p>
+
+          {uiNotice ? <p className="pharmacist-notice">{uiNotice}</p> : null}
+
+          <nav className="erp-side-nav pharmacist-erp-side-nav">
           {/* Role Card */}
           <div className="role-card">
             <div style={{ fontSize: "12px", color: "#666" }}>Role</div>
             <div style={{ fontSize: "18px", fontWeight: "bold", color: "#0066cc" }}>Pharmacist</div>
+            <div style={{ fontSize: "12px", color: "#666" }}>User: {currentUsername}</div>
             <div style={{ fontSize: "11px", color: "#666" }}>Pharmacy Management</div>
           </div>
 
           {/* Navigation Groups */}
           {MENU_GROUPS.map((group) => (
-            <div key={group.key} className="erp-nav-group">
+            <div key={group.key} className="erp-nav-group pharmacist-erp-nav-group">
               <button
-                className="erp-group-btn"
+                className="erp-group-btn pharmacist-erp-group-btn"
                 type="button"
                 onClick={() => toggleGroup(group.key)}
               >
                 <span>{group.label}</span>
-                <span style={{ marginLeft: "auto" }}>{openGroup === group.key ? "▼" : "▶"}</span>
+                <span style={{ marginLeft: "auto" }} aria-hidden="true">{openGroup === group.key ? "v" : ">"}</span>
               </button>
 
               {openGroup === group.key && (
-                <div className="erp-group-items">
+                <div className="erp-group-items pharmacist-erp-group-items">
                   {group.items.map((item) => (
                     <button
                       type="button"
@@ -489,17 +522,18 @@ function PharmacistModule() {
                       className={activeMenu === item.key ? "active" : ""}
                       onClick={() => setActiveMenu(item.key)}
                     >
-                      {item.label}
+                      {"> "}{item.label}
                     </button>
                   ))}
                 </div>
               )}
             </div>
           ))}
-        </nav>
+          </nav>
+        </aside>
 
         {/* Main Content */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div className="pharmacist-main-area" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {/* Header Section */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "1rem", borderBottom: "1px solid #ddd" }}>
             <h2 style={{ margin: 0 }}>
@@ -507,6 +541,7 @@ function PharmacistModule() {
                 .find((item) => item.key === activeMenu)
                 ?.label || "Dashboard"}
             </h2>
+            <span style={{ color: "#64748b", fontWeight: 600 }}>Signed in as: {currentUsername}</span>
           </div>
 
           {/* Stats Cards */}
@@ -1304,7 +1339,7 @@ function PharmacistModule() {
                   </div>
 
                   <button
-                    onClick={() => alert("Profile update feature coming soon!")}
+                    onClick={() => showNotice("Open Edit Profile to update details.")}
                     style={{
                       background: "#0066cc",
                       color: "#fff",
@@ -1330,7 +1365,7 @@ function PharmacistModule() {
                   <input value={profile.email} onChange={(e) => setProfile({ ...profile, email: e.target.value })} placeholder="Email" />
                   <input value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} placeholder="Phone" />
                   <input value={profile.facility} onChange={(e) => setProfile({ ...profile, facility: e.target.value })} placeholder="Facility" />
-                  <button style={{ background: "#0066cc", color: "#fff", border: "none", padding: "0.75rem 1rem", borderRadius: "4px", width: "fit-content" }}>
+                  <button onClick={saveProfileEdits} style={{ background: "#0066cc", color: "#fff", border: "none", padding: "0.75rem 1rem", borderRadius: "4px", width: "fit-content" }}>
                     Save Profile
                   </button>
                 </div>

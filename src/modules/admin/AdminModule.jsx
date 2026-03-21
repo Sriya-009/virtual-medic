@@ -79,9 +79,10 @@ const ALL_USERS = [
   { name: "Admin User", email: "admin@hospital.com", role: "Admin", department: "Administration", status: "Active" }
 ];
 
-function AdminModule() {
+function AdminModule({ currentUsername = "admin" }) {
   const [activeMenu, setActiveMenu] = useState("overview");
   const [openGroup, setOpenGroup] = useState("administration");
+  const [uiNotice, setUiNotice] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [users, setUsers] = useState(ALL_USERS);
@@ -94,6 +95,11 @@ function AdminModule() {
     department: "",
     status: "Active"
   });
+
+  const showNotice = (message) => {
+    setUiNotice(message);
+    window.setTimeout(() => setUiNotice(""), 2500);
+  };
 
   const menuTitle = useMemo(() => {
     const item = MENU_GROUPS.flatMap((group) => group.items).find((entry) => entry.key === activeMenu);
@@ -197,6 +203,7 @@ function AdminModule() {
 
     setUsers((prev) => prev.filter((user) => user.email !== deleteUserEmail));
     setDeleteUserEmail("");
+    showNotice("User deleted.");
   };
 
   const renderSection = () => {
@@ -227,7 +234,9 @@ function AdminModule() {
               <input value="YYYY-MM-DD" readOnly />
             </div>
           </div>
-          <button className="erp-primary-btn" type="button">Save System Settings</button>
+          <button className="erp-primary-btn" type="button" onClick={() => showNotice("System settings saved.")}>
+            Save System Settings
+          </button>
         </section>
       );
     }
@@ -266,7 +275,9 @@ function AdminModule() {
               </tbody>
             </table>
           </div>
-          <button className="erp-primary-btn" type="button">Save Permissions</button>
+          <button className="erp-primary-btn" type="button" onClick={() => showNotice("Permissions saved.")}>
+            Save Permissions
+          </button>
         </section>
       );
     }
@@ -294,8 +305,10 @@ function AdminModule() {
             </article>
           </div>
           <div className="inline-actions">
-            <button type="button">Restore</button>
-            <button className="erp-primary-btn" type="button">Backup Now</button>
+            <button type="button" onClick={() => showNotice("Restore initiated.")}>Restore</button>
+            <button className="erp-primary-btn" type="button" onClick={() => showNotice("Backup started.")}>
+              Backup Now
+            </button>
           </div>
           <div className="table-wrap">
             <table className="erp-table">
@@ -350,9 +363,11 @@ function AdminModule() {
             <article className="erp-stat-card"><h4>Avg API Response</h4><p>180 ms</p><span>Within target</span></article>
           </div>
           <div className="inline-actions">
-            <button type="button">Export Activity Report</button>
-            <button type="button">Export Appointment Report</button>
-            <button className="erp-primary-btn" type="button">Generate Monthly PDF</button>
+            <button type="button" onClick={() => showNotice("Activity report exported.")}>Export Activity Report</button>
+            <button type="button" onClick={() => showNotice("Appointment report exported.")}>Export Appointment Report</button>
+            <button className="erp-primary-btn" type="button" onClick={() => showNotice("Monthly PDF generated.")}>
+              Generate Monthly PDF
+            </button>
           </div>
         </section>
       );
@@ -381,7 +396,11 @@ function AdminModule() {
                     <td>{row.user}</td>
                     <td>{row.issue}</td>
                     <td>{row.status}</td>
-                    <td><button type="button">Open</button></td>
+                    <td>
+                      <button type="button" onClick={() => showNotice(`Opened ${row.id}.`)}>
+                        Open
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -512,21 +531,22 @@ function AdminModule() {
         <p>ERP Navigation</p>
         <div className="role-card">
           <strong>Role: Admin</strong>
+          <span>User: {currentUsername}</span>
           <span>Access level: Full control</span>
         </div>
-        <nav className="erp-side-nav">
+        <nav className="erp-side-nav admin-erp-side-nav">
           {MENU_GROUPS.map((group) => (
-            <div key={group.key} className="erp-nav-group">
+            <div key={group.key} className="erp-nav-group admin-erp-nav-group">
               <button
                 type="button"
-                className="erp-group-btn"
+                className="erp-group-btn admin-erp-group-btn"
                 onClick={() => setOpenGroup((prev) => (prev === group.key ? "" : group.key))}
               >
                 <span>{group.label}</span>
-                <span>{openGroup === group.key ? "▾" : "▸"}</span>
+                <span aria-hidden="true">{openGroup === group.key ? "v" : ">"}</span>
               </button>
               {openGroup === group.key ? (
-                <div className="erp-group-items">
+                <div className="erp-group-items admin-erp-group-items">
                   {group.items.map((item) => (
                     <button
                       key={item.key}
@@ -534,7 +554,7 @@ function AdminModule() {
                       className={activeMenu === item.key ? "active" : ""}
                       onClick={() => setActiveMenu(item.key)}
                     >
-                      » {item.label}
+                      {"> "}{item.label}
                     </button>
                   ))}
                 </div>
@@ -548,7 +568,9 @@ function AdminModule() {
         <header className="admin-title-row">
           <h2>{menuTitle}</h2>
           <p>Medico Administration</p>
+          <p>Signed in as: {currentUsername}</p>
         </header>
+        {uiNotice ? <p className="admin-notice">{uiNotice}</p> : null}
         {renderSection()}
       </div>
 

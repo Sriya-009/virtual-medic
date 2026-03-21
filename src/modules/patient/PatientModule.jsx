@@ -16,9 +16,8 @@ const MENU_GROUPS = [
     label: "Records & Finance",
     items: [
       { key: "medical-records", label: "Medical Records" },
-      { key: "prescriptions", label: "Prescriptions" },
-      { key: "payment-history", label: "Payment History" },
-      { key: "billing", label: "Billing" }
+      { key: "prescription-medicines", label: "Prescription & Medicines" },
+      { key: "payment-management", label: "Payment Management" }
     ]
   },
   {
@@ -157,9 +156,10 @@ function normalizeAppointment(entry) {
   };
 }
 
-function PatientModule() {
+function PatientModule({ currentUsername = "patient" }) {
   const [activeMenu, setActiveMenu] = useState("home");
   const [openGroup, setOpenGroup] = useState("care-access");
+  const [uiNotice, setUiNotice] = useState("");
   const [doctorSearch, setDoctorSearch] = useState({ text: "", specialization: "All", availability: "All" });
 
   const [appointments, setAppointments] = useState(() =>
@@ -194,6 +194,11 @@ function PatientModule() {
     newPassword: "",
     confirmPassword: ""
   });
+
+  const showNotice = (message) => {
+    setUiNotice(message);
+    window.setTimeout(() => setUiNotice(""), 2500);
+  };
 
   const currentPatientName = profile.name.trim() || "John Doe";
 
@@ -263,7 +268,7 @@ function PatientModule() {
         detail: "Next: March 25, 2026"
       },
       {
-        key: "prescriptions",
+        key: "prescription-medicines",
         label: "Active Prescriptions",
         value: activePrescriptions.length,
         detail: "1 refill needed"
@@ -395,6 +400,61 @@ function PatientModule() {
   const handleProfileField = (event) => {
     const { name, value } = event.target;
     setProfile((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePasswordField = (event) => {
+    const { name, value } = event.target;
+    setPasswordForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const saveProfile = () => {
+    if (!profile.name.trim() || !profile.phone.trim() || !profile.email.trim()) {
+      showNotice("Please complete name, phone, and email.");
+      return;
+    }
+
+    showNotice("Profile updated successfully.");
+  };
+
+  const updatePassword = () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      showNotice("Please complete all password fields.");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      showNotice("New password must be at least 6 characters.");
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      showNotice("New password and confirm password must match.");
+      return;
+    }
+
+    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    showNotice("Password changed successfully.");
+  };
+
+  const downloadMedicalReport = (entry) => {
+    const reportText = [
+      `Report ID: ${entry.id}`,
+      `Date: ${entry.date}`,
+      `Patient: ${currentPatientName}`,
+      `Record: ${entry.title}`,
+      `Diagnosis: ${entry.diagnosis}`,
+      `Prescriptions: ${entry.prescriptions}`,
+      `Doctor: ${entry.doctor}`
+    ].join("\n");
+
+    const blob = new Blob([reportText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${entry.id}-report.txt`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    showNotice(`Downloaded ${entry.id} report.`);
   };
 
   useEffect(() => {
@@ -642,7 +702,9 @@ function PatientModule() {
                       <td>{entry.prescriptions}</td>
                       <td>{entry.doctor}</td>
                       <td>
-                        <button type="button">Download</button>
+                        <button type="button" onClick={() => downloadMedicalReport(entry)}>
+                          Download
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -783,9 +845,95 @@ function PatientModule() {
       );
     }
 
+    if (activeMenu === "change-password") {
+      return (
+        <section className="erp-panel">
+          <h3>Change Password</h3>
+          <p>Update your password to keep your account secure.</p>
+          <div className="erp-form-grid">
+            <label>
+              Current Password
+              <input
+                type="password"
+                name="currentPassword"
+                value={passwordForm.currentPassword}
+                onChange={handlePasswordField}
+              />
+            </label>
+            <label>
+              New Password
+              <input
+                type="password"
+                name="newPassword"
+                value={passwordForm.newPassword}
+                onChange={handlePasswordField}
+              />
+            </label>
+            <label>
+              Confirm New Password
+              <input
+                type="password"
+                name="confirmPassword"
+                value={passwordForm.confirmPassword}
+                onChange={handlePasswordField}
+              />
+            </label>
+          </div>
+          <button className="erp-primary-btn" type="button" onClick={updatePassword}>
+            Change Password
+          </button>
+        </section>
+      );
+    }
+
+    if (["help-faq", "contact-support", "report-issue"].includes(activeMenu)) {
+      const supportContent = {
+        "help-faq": {
+          title: "Help and FAQ",
+          description: "Quick answers about appointments, payments, and prescriptions.",
+          points: [
+            "Use Appointment Booking to create or reschedule visits.",
+            "Use Payment Management to clear pending invoices.",
+            "Use Prescription and Medicines to send to pharmacist."
+          ]
+        },
+        "contact-support": {
+          title: "Contact Support",
+          description: "Reach support for urgent account or portal issues.",
+          points: [
+            "Phone: +1-800-323-4567",
+            "Email: support@medico.com",
+            "Working hours: 24/7"
+          ]
+        },
+        "report-issue": {
+          title: "Report Issue",
+          description: "Submit a portal issue and our team will review it quickly.",
+          points: [
+            "Include a short summary of what happened.",
+            "Add date/time and affected section.",
+            "Support team usually responds within 2 hours."
+          ]
+        }
+      };
+
+      const current = supportContent[activeMenu];
+      return (
+        <section className="erp-panel">
+          <h3>{current.title}</h3>
+          <p>{current.description}</p>
+          <ul className="alert-list">
+            {current.points.map((point) => (
+              <li key={point}>{point}</li>
+            ))}
+          </ul>
+        </section>
+      );
+    }
+
     return (
       <section className="erp-panel">
-        <h3>Profile Management</h3>
+        <h3>{activeMenu === "edit-profile" ? "Edit Profile" : "Profile"}</h3>
         <p>Update your name, contact info, and optional medical details.</p>
 
         <div className="erp-form-grid">
@@ -811,7 +959,9 @@ function PatientModule() {
           </label>
         </div>
 
-        <button className="erp-primary-btn" type="button">Update Profile</button>
+        <button className="erp-primary-btn" type="button" onClick={saveProfile}>
+          Update Profile
+        </button>
       </section>
     );
   };
@@ -823,23 +973,24 @@ function PatientModule() {
         <p>ERP Navigation</p>
         <div className="role-card">
           <strong>Role: Patient</strong>
+          <span>User: {currentUsername}</span>
           <span>Access level: Care and appointments</span>
         </div>
 
-        <nav className="erp-side-nav">
+        <nav className="erp-side-nav patient-erp-side-nav">
           {MENU_GROUPS.map((group) => (
-            <div key={group.key} className="erp-nav-group">
+            <div key={group.key} className="erp-nav-group patient-erp-nav-group">
               <button
                 type="button"
-                className="erp-group-btn"
+                className="erp-group-btn patient-erp-group-btn"
                 onClick={() => setOpenGroup((prev) => (prev === group.key ? "" : group.key))}
               >
                 <span>{group.label}</span>
-                <span>{openGroup === group.key ? "?" : "?"}</span>
+                <span aria-hidden="true">{openGroup === group.key ? "v" : ">"}</span>
               </button>
 
               {openGroup === group.key ? (
-                <div className="erp-group-items">
+                <div className="erp-group-items patient-erp-group-items">
                   {group.items.map((item) => (
                     <button
                       key={item.key}
@@ -847,7 +998,7 @@ function PatientModule() {
                       className={activeMenu === item.key ? "active" : ""}
                       onClick={() => setActiveMenu(item.key)}
                     >
-                      � {item.label}
+                      {"> "}{item.label}
                     </button>
                   ))}
                 </div>
@@ -861,7 +1012,10 @@ function PatientModule() {
         <header className="doctor-header">
           <h2>{menuTitle}</h2>
           <p>Manage appointments, records, prescriptions, and payments.</p>
+          <p>Signed in as: {currentUsername}</p>
         </header>
+
+        {uiNotice ? <p className="patient-notice">{uiNotice}</p> : null}
 
         {activeMenu !== "home" ? (
           <div className="erp-stats-grid patient-stats">

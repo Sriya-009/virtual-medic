@@ -162,9 +162,10 @@ function normalizeAppointment(entry) {
   };
 }
 
-function DoctorModule() {
+function DoctorModule({ currentUsername = "doctor" }) {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [openGroup, setOpenGroup] = useState("overview");
+  const [uiNotice, setUiNotice] = useState("");
   const [appointmentRows, setAppointmentRows] = useState(() => {
     const shared = readStorage(STORAGE_KEYS.appointments, SHARED_DEFAULT_APPOINTMENTS);
     return shared.map(normalizeAppointment);
@@ -189,6 +190,11 @@ function DoctorModule() {
     ...readStorage(STORAGE_KEYS.availability, DEFAULT_AVAILABILITY)
   }));
   const [profileForm, setProfileForm] = useState(DEFAULT_PROFILE);
+
+  const showNotice = (message) => {
+    setUiNotice(message);
+    window.setTimeout(() => setUiNotice(""), 2500);
+  };
 
   const activeTabLabel = useMemo(() => {
     const tab = TABS.flatMap((group) => group.items).find((entry) => entry.key === activeTab);
@@ -256,6 +262,32 @@ function DoctorModule() {
   const handleProfileChange = (event) => {
     const { name, value } = event.target;
     setProfileForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const saveAvailabilitySettings = () => {
+    showNotice("Availability settings saved.");
+  };
+
+  const startPatientCommunication = (patientName, mode) => {
+    showNotice(`${mode} started with ${patientName}.`);
+  };
+
+  const handleNotificationsAction = (action) => {
+    if (action === "mark-read") {
+      showNotice("All notifications marked as read.");
+      return;
+    }
+
+    showNotice("Messages panel opened.");
+  };
+
+  const saveDoctorProfile = () => {
+    if (!profileForm.specialization.trim() || !profileForm.experience.trim()) {
+      showNotice("Specialization and experience are required.");
+      return;
+    }
+
+    showNotice("Profile updated successfully.");
   };
 
   const saveMedicalRecord = () => {
@@ -368,22 +400,23 @@ function DoctorModule() {
         <p>ERP Navigation</p>
         <div className="role-card">
           <strong>Role: Doctor</strong>
+          <span>User: {currentUsername}</span>
           <span>Access level: Clinical operations</span>
         </div>
-        <nav className="erp-side-nav">
+        <nav className="erp-side-nav doctor-erp-side-nav">
           {TABS.map((group) => (
-            <div key={group.key} className="erp-nav-group">
+            <div key={group.key} className="erp-nav-group doctor-erp-nav-group">
               <button
                 type="button"
-                className="erp-group-btn"
+                className="erp-group-btn doctor-erp-group-btn"
                 onClick={() => setOpenGroup((prev) => (prev === group.key ? "" : group.key))}
               >
                 <span>{group.label}</span>
-                <span>{openGroup === group.key ? "▼" : "▶"}</span>
+                <span aria-hidden="true">{openGroup === group.key ? "v" : ">"}</span>
               </button>
 
               {openGroup === group.key ? (
-                <div className="erp-group-items">
+                <div className="erp-group-items doctor-erp-group-items">
                   {group.items.map((tab) => (
                     <button
                       key={tab.key}
@@ -391,7 +424,7 @@ function DoctorModule() {
                       className={activeTab === tab.key ? "active" : ""}
                       onClick={() => setActiveTab(tab.key)}
                     >
-                      {tab.label}
+                      {"> "}{tab.label}
                     </button>
                   ))}
                 </div>
@@ -405,7 +438,10 @@ function DoctorModule() {
         <header className="doctor-header">
           <h2>{activeTabLabel}</h2>
           <p>Manage appointments, patient care, records, prescriptions, and communication.</p>
+          <p>Signed in as: {currentUsername}</p>
         </header>
+
+        {uiNotice ? <p className="doctor-notice">{uiNotice}</p> : null}
 
         <div className="erp-stats-grid doctor-stats">
           <article className="erp-stat-card">
@@ -621,7 +657,9 @@ function DoctorModule() {
               </div>
             </div>
 
-            <button className="erp-primary-btn" type="button">Save Availability Settings</button>
+            <button className="erp-primary-btn" type="button" onClick={saveAvailabilitySettings}>
+              Save Availability Settings
+            </button>
           </section>
         ) : null}
 
@@ -648,8 +686,12 @@ function DoctorModule() {
                   <p>History: {patient.history}</p>
                   <p>Last visit: {patient.lastVisit}</p>
                   <div className="table-actions">
-                    <button type="button">Start Video Consultation</button>
-                    <button type="button">Open Chat</button>
+                    <button type="button" onClick={() => startPatientCommunication(patient.name, "Video consultation")}>
+                      Start Video Consultation
+                    </button>
+                    <button type="button" onClick={() => startPatientCommunication(patient.name, "Chat")}>
+                      Open Chat
+                    </button>
                   </div>
                 </article>
               ))}
@@ -913,8 +955,12 @@ function DoctorModule() {
               ))}
             </ul>
             <div className="inline-actions">
-              <button type="button">Mark All as Read</button>
-              <button type="button">Open Messages</button>
+              <button type="button" onClick={() => handleNotificationsAction("mark-read")}>
+                Mark All as Read
+              </button>
+              <button type="button" onClick={() => handleNotificationsAction("open-messages")}>
+                Open Messages
+              </button>
             </div>
           </section>
         ) : null}
@@ -942,7 +988,9 @@ function DoctorModule() {
               </label>
             </div>
 
-            <button className="erp-primary-btn" type="button">Update Profile</button>
+            <button className="erp-primary-btn" type="button" onClick={saveDoctorProfile}>
+              Update Profile
+            </button>
           </section>
         ) : null}
       </div>

@@ -691,6 +691,50 @@ hr {
   color: #64748b;
 }
 
+.doctor-erp-side-nav {
+  gap: 0.5rem;
+}
+
+.doctor-erp-nav-group {
+  border: 1px solid #c7dbef;
+  border-radius: 12px;
+  background: #f3f8fd;
+}
+
+.doctor-erp-group-btn {
+  background: #f8fbff;
+  border-bottom: 1px solid #c7dbef;
+  color: #13253e;
+  padding: 0.74rem 0.85rem;
+}
+
+.doctor-erp-group-items button {
+  background: #edf4fb;
+  border-bottom: 1px solid #c7dbef;
+  color: #1f2f46;
+  padding: 0.72rem 0.9rem;
+  font-weight: 600;
+}
+
+.doctor-erp-group-items button:hover {
+  background: #e4eef8;
+}
+
+.doctor-erp-group-items button.active {
+  background: #d6e7f8;
+  color: #0e223a;
+}
+
+.doctor-notice {
+  margin: 0;
+  border: 1px solid #bfd6ef;
+  background: #e9f3ff;
+  color: #0f2e4f;
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  font-weight: 600;
+}
+
 .doctor-main-area {
   display: flex;
   flex-direction: column;
@@ -801,6 +845,51 @@ hr {
   color: #64748b;
 }
 
+.patient-erp-side-nav {
+  gap: 0.5rem;
+}
+
+.patient-erp-nav-group {
+  border: 1px solid #c7dbef;
+  border-radius: 12px;
+  background: #f3f8fd;
+}
+
+.patient-erp-group-btn {
+  background: #f8fbff;
+  border-bottom: 1px solid #c7dbef;
+  color: #13253e;
+  padding: 0.74rem 0.85rem;
+  font-size: 0.98rem;
+}
+
+.patient-erp-group-items button {
+  background: #edf4fb;
+  border-bottom: 1px solid #c7dbef;
+  color: #1f2f46;
+  padding: 0.72rem 0.9rem;
+  font-weight: 600;
+}
+
+.patient-erp-group-items button:hover {
+  background: #e4eef8;
+}
+
+.patient-erp-group-items button.active {
+  background: #d6e7f8;
+  color: #0e223a;
+}
+
+.patient-notice {
+  margin: 0;
+  border: 1px solid #bfd6ef;
+  background: #e9f3ff;
+  color: #0f2e4f;
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  font-weight: 600;
+}
+
 .patient-main-area {
   display: flex;
   flex-direction: column;
@@ -837,6 +926,104 @@ hr {
   background: transparent;
   border: none;
   padding: 0;
+}
+
+.admin-erp-side-nav {
+  gap: 0.5rem;
+}
+
+.admin-erp-nav-group {
+  border: 1px solid #c7dbef;
+  border-radius: 12px;
+  background: #f3f8fd;
+}
+
+.admin-erp-group-btn {
+  background: #f8fbff;
+  border-bottom: 1px solid #c7dbef;
+  color: #13253e;
+  padding: 0.74rem 0.85rem;
+}
+
+.admin-erp-group-items button {
+  background: #edf4fb;
+  border-bottom: 1px solid #c7dbef;
+  color: #1f2f46;
+  padding: 0.72rem 0.9rem;
+  font-weight: 600;
+}
+
+.admin-erp-group-items button:hover {
+  background: #e4eef8;
+}
+
+.admin-erp-group-items button.active {
+  background: #d6e7f8;
+  color: #0e223a;
+}
+
+.admin-notice {
+  margin: 0;
+  border: 1px solid #bfd6ef;
+  background: #e9f3ff;
+  color: #0f2e4f;
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  font-weight: 600;
+}
+
+.pharmacist-left-panel {
+  align-self: start;
+}
+
+.pharmacist-erp-side-nav {
+  gap: 0.5rem;
+}
+
+.pharmacist-erp-nav-group {
+  border: 1px solid #c7dbef;
+  border-radius: 12px;
+  background: #f3f8fd;
+}
+
+.pharmacist-erp-group-btn {
+  background: #f8fbff;
+  border-bottom: 1px solid #c7dbef;
+  color: #13253e;
+  padding: 0.74rem 0.85rem;
+}
+
+.pharmacist-erp-group-items button {
+  background: #edf4fb;
+  border-bottom: 1px solid #c7dbef;
+  color: #1f2f46;
+  padding: 0.72rem 0.9rem;
+  font-weight: 600;
+}
+
+.pharmacist-erp-group-items button:hover {
+  background: #e4eef8;
+}
+
+.pharmacist-erp-group-items button.active {
+  background: #d6e7f8;
+  color: #0e223a;
+}
+
+.pharmacist-main-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.pharmacist-notice {
+  margin: 0 0 0.8rem;
+  border: 1px solid #bfd6ef;
+  background: #e9f3ff;
+  color: #0f2e4f;
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  font-weight: 600;
 }
 
 .patient-welcome {

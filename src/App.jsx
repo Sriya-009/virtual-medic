@@ -19,6 +19,7 @@ function App() {
   });
   const [error, setError] = useState("");
   const [activeRole, setActiveRole] = useState("");
+  const [activeUsername, setActiveUsername] = useState("");
 
   // Forgot Password States
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -88,10 +89,12 @@ function App() {
 
     setError("");
     setActiveRole(matchedRole);
+    setActiveUsername(form.username.trim());
   };
 
   const logout = () => {
     setActiveRole("");
+    setActiveUsername("");
     setForm((prev) => ({ ...prev, password: "" }));
   };
 
@@ -206,6 +209,7 @@ function App() {
           <div>
             <p className="dashboard-role">{DEMO_CREDENTIALS[activeRole].label} Dashboard</p>
             <h1>Medico</h1>
+            <p className="dashboard-role">User: {activeUsername || DEMO_CREDENTIALS[activeRole].username}</p>
           </div>
           <button className="logout-btn" type="button" onClick={logout}>
             Logout
@@ -213,7 +217,7 @@ function App() {
         </header>
 
         <main className="dashboard-content">
-          <ActiveModule />
+          <ActiveModule currentUsername={activeUsername || DEMO_CREDENTIALS[activeRole].username} />
         </main>
       </div>
     );

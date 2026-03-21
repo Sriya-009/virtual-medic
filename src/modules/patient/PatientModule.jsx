@@ -4,6 +4,7 @@ const MENU_GROUPS = [
   {
     key: "care-access",
     label: "Care Access",
+    mainMenu: "home",
     items: [
       { key: "home", label: "Home" },
       { key: "doctor-search", label: "Doctor Search" },
@@ -14,6 +15,7 @@ const MENU_GROUPS = [
   {
     key: "records-finance",
     label: "Records & Finance",
+    mainMenu: "medical-records",
     items: [
       { key: "medical-records", label: "Medical Records" },
       { key: "prescriptions", label: "Prescriptions" },
@@ -24,6 +26,7 @@ const MENU_GROUPS = [
   {
     key: "account",
     label: "Account",
+    mainMenu: "profile",
     items: [
       { key: "profile", label: "Profile" },
       { key: "edit-profile", label: "Edit Profile" },
@@ -34,6 +37,7 @@ const MENU_GROUPS = [
   {
     key: "support",
     label: "Support",
+    mainMenu: "help-faq",
     items: [
       { key: "help-faq", label: "Help / FAQ" },
       { key: "contact-support", label: "Contact Support" },
@@ -1189,12 +1193,13 @@ function PatientModule({ currentUsername = "patient" }) {
               <button
                 type="button"
                 className="erp-group-btn patient-erp-group-btn"
-                onClick={() =>
+                onClick={() => {
+                  setActiveMenu(group.mainMenu);
                   setOpenGroups((prev) => ({
                     ...prev,
                     [group.key]: !prev[group.key]
-                  }))
-                }
+                  }));
+                }}
               >
                 <span>{group.label}</span>
                 <span aria-hidden="true">{openGroups[group.key] ? "▼" : "▶"}</span>

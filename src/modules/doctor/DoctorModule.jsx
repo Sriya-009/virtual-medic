@@ -2,30 +2,90 @@ import { useEffect, useMemo, useState } from "react";
 
 const TABS = [
   {
-    key: "overview",
-    label: "Dashboard & Planning",
+    key: "appointment-management",
+    label: "Appointment Management",
+    mainTab: "appointments",
     items: [
-      { key: "dashboard", label: "Dashboard / Overview" },
-      { key: "appointments", label: "Appointment Management" },
-      { key: "availability", label: "Availability Settings" }
+      { key: "appointments-upcoming", label: "View upcoming appointments", targetTab: "appointments" },
+      { key: "appointments-past", label: "View past appointments", targetTab: "appointments" },
+      { key: "appointments-requests", label: "Accept / reject requests", targetTab: "appointments" },
+      { key: "appointments-schedule", label: "Manage schedule", targetTab: "appointments" }
     ]
   },
   {
-    key: "clinical",
-    label: "Clinical Care",
+    key: "patient-interaction",
+    label: "Patient Interaction",
+    mainTab: "interaction",
     items: [
-      { key: "interaction", label: "Patient Interaction" },
-      { key: "records", label: "Medical Records" },
-      { key: "prescriptions", label: "Prescription Management" }
+      { key: "interaction-details", label: "View patient details", targetTab: "interaction" },
+      { key: "interaction-chat", label: "Chat / communication", targetTab: "interaction" },
+      { key: "interaction-virtual", label: "Virtual consultation", targetTab: "interaction" }
     ]
   },
   {
-    key: "insights",
-    label: "Insights & Account",
+    key: "medical-records",
+    label: "Medical Records",
+    mainTab: "records",
     items: [
-      { key: "reports", label: "Reports" },
-      { key: "profile", label: "Profile" },
-      { key: "notifications", label: "Notifications" },
+      { key: "records-history", label: "View patient history", targetTab: "records" },
+      { key: "records-diagnosis", label: "Update diagnosis", targetTab: "records" },
+      { key: "records-notes", label: "Add notes", targetTab: "records" }
+    ]
+  },
+  {
+    key: "prescription-management",
+    label: "Prescription Management",
+    mainTab: "prescriptions",
+    items: [
+      { key: "prescriptions-create", label: "Create prescription", targetTab: "prescriptions" },
+      { key: "prescriptions-edit", label: "Edit prescription", targetTab: "prescriptions" },
+      { key: "prescriptions-send", label: "Send to patient/pharmacist", targetTab: "prescriptions" }
+    ]
+  },
+  {
+    key: "dashboard-overview",
+    label: "Dashboard / Overview",
+    mainTab: "dashboard",
+    items: [
+      { key: "dashboard-total-patients", label: "Total patients", targetTab: "dashboard" },
+      { key: "dashboard-appointments-count", label: "Appointments count", targetTab: "dashboard" },
+      { key: "dashboard-activity-summary", label: "Activity summary", targetTab: "dashboard" }
+    ]
+  },
+  {
+    key: "reports",
+    label: "Reports",
+    mainTab: "reports",
+    items: [
+      { key: "reports-consultation-history", label: "Consultation history", targetTab: "reports" },
+      { key: "reports-performance-stats", label: "Performance stats", targetTab: "reports" }
+    ]
+  },
+  {
+    key: "profile",
+    label: "Profile",
+    mainTab: "profile",
+    items: [
+      { key: "profile-view", label: "View profile", targetTab: "profile" },
+      { key: "profile-edit", label: "Edit details (specialization, experience)", targetTab: "profile" }
+    ]
+  },
+  {
+    key: "availability-settings",
+    label: "Availability Settings",
+    mainTab: "availability",
+    items: [
+      { key: "availability-working-hours", label: "Set working hours", targetTab: "availability" },
+      { key: "availability-manage-slots", label: "Manage slots", targetTab: "availability" }
+    ]
+  },
+  {
+    key: "notifications",
+    label: "Notifications",
+    mainTab: "notifications",
+    items: [
+      { key: "notifications-appointment-alerts", label: "Appointment alerts", targetTab: "notifications" },
+      { key: "notifications-messages", label: "Messages", targetTab: "notifications" }
     ]
   }
 ];
@@ -171,10 +231,17 @@ function normalizeAppointment(entry) {
 
 function DoctorModule({ currentUsername = "doctor" }) {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeSubNavKey, setActiveSubNavKey] = useState("dashboard-total-patients");
   const [openGroups, setOpenGroups] = useState({
-    overview: true,
-    clinical: true,
-    insights: true
+    "appointment-management": true,
+    "patient-interaction": true,
+    "medical-records": true,
+    "prescription-management": true,
+    "dashboard-overview": true,
+    reports: true,
+    profile: true,
+    "availability-settings": true,
+    notifications: true
   });
   const [uiNotice, setUiNotice] = useState("");
   const [appointmentRows, setAppointmentRows] = useState(() => {
@@ -234,8 +301,8 @@ function DoctorModule({ currentUsername = "doctor" }) {
   };
 
   const activeTabLabel = useMemo(() => {
-    const tab = TABS.flatMap((group) => group.items).find((entry) => entry.key === activeTab);
-    return tab ? tab.label : "Doctor Dashboard";
+    const group = TABS.find((entry) => entry.mainTab === activeTab);
+    return group ? group.label : "Doctor Dashboard";
   }, [activeTab]);
 
   const doctorAppointments = useMemo(
@@ -602,12 +669,14 @@ function DoctorModule({ currentUsername = "doctor" }) {
               <button
                 type="button"
                 className="erp-group-btn doctor-erp-group-btn"
-                onClick={() =>
+                onClick={() => {
+                  setActiveTab(group.mainTab);
+                  setActiveSubNavKey("");
                   setOpenGroups((prev) => ({
                     ...prev,
                     [group.key]: !prev[group.key]
-                  }))
-                }
+                  }));
+                }}
               >
                 <span>{group.label}</span>
                 <span aria-hidden="true">{openGroups[group.key] ? "▼" : "▶"}</span>
@@ -619,8 +688,11 @@ function DoctorModule({ currentUsername = "doctor" }) {
                     <button
                       key={tab.key}
                       type="button"
-                      className={activeTab === tab.key ? "active" : ""}
-                      onClick={() => setActiveTab(tab.key)}
+                      className={activeSubNavKey === tab.key ? "active" : ""}
+                      onClick={() => {
+                        setActiveSubNavKey(tab.key);
+                        setActiveTab(tab.targetTab);
+                      }}
                     >
                       {tab.label}
                     </button>

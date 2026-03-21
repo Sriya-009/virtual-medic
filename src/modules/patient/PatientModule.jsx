@@ -2,6 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 
 const MENU_GROUPS = [
   {
+    key: "home-main",
+    label: "Home",
+    mainMenu: "home",
+    items: [
+      { key: "home-overview", label: "Dashboard overview", targetMenu: "home" }
+    ]
+  },
+  {
     key: "doctor-search-main",
     label: "Doctor Search",
     mainMenu: "doctor-search",
@@ -240,9 +248,10 @@ function normalizeAppointment(entry) {
 }
 
 function PatientModule({ currentUsername = "patient" }) {
-  const [activeMenu, setActiveMenu] = useState("doctor-search");
+  const [activeMenu, setActiveMenu] = useState("home");
   const [activeSubNavKey, setActiveSubNavKey] = useState("");
   const [openGroups, setOpenGroups] = useState({
+    "home-main": true,
     "doctor-search-main": true,
     "appointment-booking-main": true,
     "virtual-consultation-main": true,
@@ -326,6 +335,14 @@ function PatientModule({ currentUsername = "patient" }) {
     if (!activeSubNavKey) {
       return true;
     }
+
+    const sectionAliases = {
+      "access-records": ["diagnoses", "record-prescriptions"]
+    };
+    if (sectionAliases[activeSubNavKey]) {
+      return sectionAliases[activeSubNavKey].some((alias) => keys.includes(alias));
+    }
+
     const selected = MENU_GROUPS.flatMap((group) => group.items).find((item) => item.key === activeSubNavKey);
     if (!selected || selected.targetMenu !== activeMenu) {
       return true;

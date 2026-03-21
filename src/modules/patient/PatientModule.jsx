@@ -22,10 +22,14 @@ const MENU_GROUPS = [
         targetMenu: "doctor-search",
       },
       {
-        key: "doctor-profiles",
-        label: "View doctor profiles",
-        targetMenu: "doctor-search",
-        children: ["Experience", "Ratings"]
+        key: "doctor-search-experience",
+        label: "Experience",
+        targetMenu: "doctor-search"
+      },
+      {
+        key: "doctor-search-ratings",
+        label: "Ratings",
+        targetMenu: "doctor-search"
       }
     ]
   },
@@ -102,36 +106,19 @@ const MENU_GROUPS = [
     ]
   },
   {
-    key: "notifications-main",
-    label: "Notifications",
-    mainMenu: "notifications",
-    items: [
-      {
-        key: "alerts-parent",
-        label: "Get alerts for",
-        targetMenu: "notifications"
-      },
-      {
-        key: "alert-appointment-confirmation",
-        label: "Appointment confirmation",
-        targetMenu: "notifications"
-      },
-      {
-        key: "alert-prescription-updates",
-        label: "Prescription updates",
-        targetMenu: "notifications",
-      }
-    ]
-  },
-  {
     key: "profile-management-main",
     label: "Profile Management",
-    mainMenu: "edit-profile",
+    mainMenu: "profile",
     items: [
       {
-        key: "update-details",
-        label: "Update personal details",
+        key: "update-profile",
+        label: "Update profile",
         targetMenu: "edit-profile"
+      },
+      {
+        key: "view-profile",
+        label: "view profile",
+        targetMenu: "profile"
       }
     ]
   }
@@ -262,7 +249,6 @@ function PatientModule({ currentUsername = "patient" }) {
     "medical-records-main": true,
     "prescription-main": true,
     "payment-management-main": true,
-    "notifications-main": true,
     "profile-management-main": true
   });
   const [uiNotice, setUiNotice] = useState("");
@@ -335,6 +321,17 @@ function PatientModule({ currentUsername = "patient" }) {
     const item = MENU_GROUPS.flatMap((entry) => entry.items).find((entry) => entry.targetMenu === activeMenu);
     return item ? item.label : "Patient Dashboard";
   }, [activeMenu, activeSubNavKey]);
+
+  const isSubSectionVisible = (keys) => {
+    if (!activeSubNavKey) {
+      return true;
+    }
+    const selected = MENU_GROUPS.flatMap((group) => group.items).find((item) => item.key === activeSubNavKey);
+    if (!selected || selected.targetMenu !== activeMenu) {
+      return true;
+    }
+    return keys.includes(activeSubNavKey);
+  };
 
   const filteredDoctors = useMemo(() => {
     const query = doctorSearch.name.trim().toLowerCase();
@@ -720,34 +717,40 @@ function PatientModule({ currentUsername = "patient" }) {
           <p>Search doctors by name, specialization, and availability.</p>
 
           <div className="erp-form-grid">
-            <label>
-              Name
-              <input
-                name="name"
-                value={doctorSearch.name}
-                onChange={handleDoctorSearch}
-                placeholder="Search by doctor name"
-              />
-            </label>
-            <label>
-              Specialization
-              <select name="specialization" value={doctorSearch.specialization} onChange={handleDoctorSearch}>
-                <option value="All">All</option>
-                <option value="Cardiology">Cardiology</option>
-                <option value="Neurology">Neurology</option>
-                <option value="Pediatrics">Pediatrics</option>
-                <option value="Orthopedics">Orthopedics</option>
-              </select>
-            </label>
-            <label>
-              Availability
-              <select name="availability" value={doctorSearch.availability} onChange={handleDoctorSearch}>
-                <option value="All">All</option>
-                <option value="Morning">Morning</option>
-                <option value="Afternoon">Afternoon</option>
-                <option value="Evening">Evening</option>
-              </select>
-            </label>
+            {isSubSectionVisible(["doctor-search-name"]) ? (
+              <label>
+                Name
+                <input
+                  name="name"
+                  value={doctorSearch.name}
+                  onChange={handleDoctorSearch}
+                  placeholder="Search by doctor name"
+                />
+              </label>
+            ) : null}
+            {isSubSectionVisible(["doctor-search-specialization"]) ? (
+              <label>
+                Specialization
+                <select name="specialization" value={doctorSearch.specialization} onChange={handleDoctorSearch}>
+                  <option value="All">All</option>
+                  <option value="Cardiology">Cardiology</option>
+                  <option value="Neurology">Neurology</option>
+                  <option value="Pediatrics">Pediatrics</option>
+                  <option value="Orthopedics">Orthopedics</option>
+                </select>
+              </label>
+            ) : null}
+            {isSubSectionVisible(["doctor-search-availability"]) ? (
+              <label>
+                Availability
+                <select name="availability" value={doctorSearch.availability} onChange={handleDoctorSearch}>
+                  <option value="All">All</option>
+                  <option value="Morning">Morning</option>
+                  <option value="Afternoon">Afternoon</option>
+                  <option value="Evening">Evening</option>
+                </select>
+              </label>
+            ) : null}
           </div>
 
           <div className="patient-cards-grid">
@@ -756,8 +759,8 @@ function PatientModule({ currentUsername = "patient" }) {
                 <h4>{doctor.name}</h4>
                 <p>Specialization: {doctor.specialization}</p>
                 <p>Availability: {doctor.availability}</p>
-                <p>Experience: {doctor.experience} years</p>
-                <p>Rating: {doctor.rating} / 5</p>
+                {isSubSectionVisible(["doctor-search-experience"]) ? <p>Experience: {doctor.experience} years</p> : null}
+                {isSubSectionVisible(["doctor-search-ratings"]) ? <p>Rating: {doctor.rating} / 5</p> : null}
               </article>
             ))}
           </div>
@@ -771,6 +774,7 @@ function PatientModule({ currentUsername = "patient" }) {
           <h3>Appointment Booking</h3>
           <p>Book appointments, view upcoming schedule, cancel or reschedule.</p>
 
+          {isSubSectionVisible(["book-appointments", "select-slot"]) ? (
           <div className="quick-section">
             <h4>Book New Appointment</h4>
             <div className="erp-form-grid">
@@ -797,7 +801,9 @@ function PatientModule({ currentUsername = "patient" }) {
               Book Appointment
             </button>
           </div>
+          ) : null}
 
+          {isSubSectionVisible(["upcoming-appointments", "cancel-reschedule"]) ? (
           <div className="quick-section">
             <h4>My Appointments</h4>
             <div className="table-wrap">
@@ -840,6 +846,7 @@ function PatientModule({ currentUsername = "patient" }) {
               </table>
             </div>
           </div>
+          ) : null}
         </section>
       );
     }
@@ -850,6 +857,7 @@ function PatientModule({ currentUsername = "patient" }) {
           <h3>Virtual Consultation</h3>
           <p>Join video/chat consultation and communicate symptoms.</p>
 
+          {isSubSectionVisible(["communicate-symptoms"]) ? (
           <label className="doctor-notes-label">
             Symptoms / Message to Doctor
             <textarea
@@ -858,7 +866,9 @@ function PatientModule({ currentUsername = "patient" }) {
               placeholder="Describe your current symptoms"
             />
           </label>
+          ) : null}
 
+          {isSubSectionVisible(["join-consultation"]) ? (
           <div className="patient-cards-grid">
             {upcomingAppointments.map((entry) => (
               <article key={entry.id} className="patient-card">
@@ -873,6 +883,7 @@ function PatientModule({ currentUsername = "patient" }) {
               </article>
             ))}
           </div>
+          ) : null}
 
           <div className="quick-section">
             <h4>Communication Log</h4>
@@ -898,10 +909,10 @@ function PatientModule({ currentUsername = "patient" }) {
                   <tr>
                     <th>Date</th>
                     <th>Record</th>
-                    <th>Diagnosis</th>
-                    <th>Prescriptions</th>
+                    {isSubSectionVisible(["diagnoses"]) ? <th>Diagnosis</th> : null}
+                    {isSubSectionVisible(["record-prescriptions"]) ? <th>Prescriptions</th> : null}
                     <th>Doctor</th>
-                    <th>Report</th>
+                    {isSubSectionVisible(["download-reports"]) ? <th>Report</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -909,14 +920,16 @@ function PatientModule({ currentUsername = "patient" }) {
                     <tr key={entry.id}>
                       <td>{entry.date}</td>
                       <td>{entry.title}</td>
-                      <td>{entry.diagnosis}</td>
-                      <td>{entry.prescriptions}</td>
+                      {isSubSectionVisible(["diagnoses"]) ? <td>{entry.diagnosis}</td> : null}
+                      {isSubSectionVisible(["record-prescriptions"]) ? <td>{entry.prescriptions}</td> : null}
                       <td>{entry.doctor}</td>
-                      <td>
-                        <button type="button" onClick={() => downloadMedicalReport(entry)}>
-                          Download
-                        </button>
-                      </td>
+                      {isSubSectionVisible(["download-reports"]) ? (
+                        <td>
+                          <button type="button" onClick={() => downloadMedicalReport(entry)}>
+                            Download
+                          </button>
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>
@@ -954,10 +967,14 @@ function PatientModule({ currentUsername = "patient" }) {
                     <td>{entry.refill}</td>
                     <td>
                       <div className="table-actions">
-                        <button type="button" onClick={() => sendToPharmacist(entry.id)}>
-                          Send to Pharmacist
-                        </button>
-                        <button type="button" onClick={() => orderMedicine(entry)}>Order Medicine</button>
+                        {isSubSectionVisible(["send-to-pharmacist"]) ? (
+                          <button type="button" onClick={() => sendToPharmacist(entry.id)}>
+                            Send to Pharmacist
+                          </button>
+                        ) : null}
+                        {isSubSectionVisible(["order-medicines"]) ? (
+                          <button type="button" onClick={() => orderMedicine(entry)}>Order Medicine</button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -1052,7 +1069,7 @@ function PatientModule({ currentUsername = "patient" }) {
                     <th>Invoice</th>
                     <th>Amount</th>
                     <th>Status</th>
-                    <th>Action</th>
+                    {isSubSectionVisible(["payment-consultation", "payment-medicines"]) ? <th>Action</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -1062,16 +1079,18 @@ function PatientModule({ currentUsername = "patient" }) {
                         <td>{entry.item}</td>
                         <td>${entry.amount}</td>
                         <td>{entry.status}</td>
-                        <td>
-                          <button className="erp-primary-btn" type="button" onClick={() => startInvoicePayment(entry)}>
-                            Pay Now
-                          </button>
-                        </td>
+                        {isSubSectionVisible(["payment-consultation", "payment-medicines"]) ? (
+                          <td>
+                            <button className="erp-primary-btn" type="button" onClick={() => startInvoicePayment(entry)}>
+                              Pay Now
+                            </button>
+                          </td>
+                        ) : null}
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="4">No pending invoices.</td>
+                      <td colSpan={isSubSectionVisible(["payment-consultation", "payment-medicines"]) ? "4" : "3"}>No pending invoices.</td>
                     </tr>
                   )}
                 </tbody>
@@ -1120,7 +1139,16 @@ function PatientModule({ currentUsername = "patient" }) {
           <h3>Notifications</h3>
           <p>Get alerts for appointments, prescriptions, and payments.</p>
           <ul className="alert-list">
-            {notifications.length > 0 ? notifications.map((entry) => <li key={entry}>{entry}</li>) : <li>No notifications yet.</li>}
+            {notifications.length > 0 ? notifications.map((entry) => {
+              const showAppointment = activeSubNavKey === "alert-appointment-confirmation" && entry.toLowerCase().includes("appointment");
+              const showPrescription = activeSubNavKey === "alert-prescription-updates" && entry.toLowerCase().includes("prescription");
+              const showAll = !activeSubNavKey || activeSubNavKey === "alerts-parent";
+
+              if (!showAll && !showAppointment && !showPrescription) {
+                return null;
+              }
+              return <li key={entry}>{entry}</li>;
+            }) : <li>No notifications yet.</li>}
           </ul>
         </section>
       );

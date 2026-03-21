@@ -846,20 +846,19 @@ hr {
 
 .patient-home-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.2rem;
 }
 
 .patient-home-card {
   position: relative;
   border: 1px solid #d7dee8;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #ffffff;
-  min-height: 210px;
-  padding: 1.1rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  padding: 1.25rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
   align-items: flex-start;
   cursor: pointer;
   transition: transform 0.16s ease, box-shadow 0.16s ease;
@@ -870,53 +869,70 @@ hr {
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
 }
 
-.patient-home-card p {
-  margin: 1rem 0 0;
-  font-size: 1.6rem;
-  color: #2563a8;
-  font-weight: 500;
+.patient-card-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.patient-home-icon {
-  width: 90px;
-  height: 90px;
+.patient-home-icon-small {
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   color: #fff;
-  font-size: 1.6rem;
-  align-self: center;
+  font-size: 1.4rem;
+  flex-shrink: 0;
 }
 
-.patient-home-icon.blue {
+.patient-home-icon-small.blue {
   background: #1f6feb;
 }
 
-.patient-home-icon.cyan {
+.patient-home-icon-small.cyan {
   background: #22b8df;
 }
 
-.patient-home-icon.green {
+.patient-home-icon-small.green {
   background: #1b8f5b;
 }
 
-.patient-home-icon.violet {
-  background: #3b82f6;
+.patient-home-icon-small.violet {
+  background: #667eea;
 }
 
-.patient-home-count {
-  position: absolute;
-  right: 1.2rem;
-  bottom: 1.1rem;
-  min-width: 42px;
-  height: 42px;
-  border-radius: 8px;
-  background: #f6be00;
-  color: #111827;
-  display: grid;
-  place-items: center;
-  font-size: 1.9rem;
+.patient-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  justify-content: flex-start;
+}
+
+.patient-card-label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #5a7fa5;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.patient-card-value {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #1f2937;
   font-weight: 700;
+}
+
+.patient-card-detail {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #8b9db0;
+  font-weight: 400;
+}
+
+.patient-home-icon.violet {
+  background: #667eea;
 }
 
 @media (max-width: 680px) {

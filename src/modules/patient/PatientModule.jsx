@@ -243,28 +243,32 @@ function PatientModule() {
         key: "appointment-booking",
         label: "Upcoming Appointments",
         value: upcomingAppointments.length,
+        detail: "Next: March 25, 2026",
         iconClass: "blue"
       },
       {
         key: "prescription-medicines",
         label: "Active Prescriptions",
         value: activePrescriptions.length,
+        detail: "1 refill needed",
         iconClass: "cyan"
       },
       {
         key: "medical-records",
         label: "Medical Records",
         value: MEDICAL_HISTORY.length,
+        detail: "Last updated today",
         iconClass: "green"
       },
       {
         key: "payment-management",
-        label: "Pending Payments",
-        value: pendingInvoices.length,
+        label: "Health Score",
+        value: "85%",
+        detail: "Good condition",
         iconClass: "violet"
       }
     ],
-    [upcomingAppointments.length, activePrescriptions.length, pendingInvoices.length]
+    [upcomingAppointments.length, activePrescriptions.length]
   );
 
   const handleDoctorSearch = (event) => {
@@ -404,7 +408,7 @@ function PatientModule() {
     if (activeMenu === "home") {
       return (
         <section className="erp-panel patient-home-panel">
-          <h3 className="patient-welcome">Welcome 2400032373</h3>
+          <h3 className="patient-welcome">Welcome {currentPatientName}</h3>
           <div className="patient-home-grid">
             {homeCards.map((card) => (
               <button
@@ -413,11 +417,16 @@ function PatientModule() {
                 className="patient-home-card"
                 onClick={() => setActiveMenu(card.key)}
               >
-                <span className={`patient-home-icon ${card.iconClass}`} aria-hidden="true">
-                  ?
-                </span>
-                <p>{card.label}</p>
-                <span className="patient-home-count">{card.value}</span>
+                <div className="patient-card-icon-wrapper">
+                  <span className={`patient-home-icon-small ${card.iconClass}`} aria-hidden="true">
+                    ?
+                  </span>
+                </div>
+                <div className="patient-card-content">
+                  <p className="patient-card-label">{card.label}</p>
+                  <p className="patient-card-value">{card.value}</p>
+                  <p className="patient-card-detail">{card.detail}</p>
+                </div>
               </button>
             ))}
           </div>
@@ -830,7 +839,7 @@ function PatientModule() {
                       className={activeMenu === item.key ? "active" : ""}
                       onClick={() => setActiveMenu(item.key)}
                     >
-                      » {item.label}
+                      ï¿½ {item.label}
                     </button>
                   ))}
                 </div>

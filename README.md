@@ -1,4 +1,4 @@
-# Virtual Medical Frontend
+# Medico Frontend
 
 React + Vite JavaScript frontend with three modules:
 - Admin

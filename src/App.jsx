@@ -76,7 +76,7 @@ function App() {
         <header className="dashboard-topbar">
           <div>
             <p className="dashboard-role">{DEMO_CREDENTIALS[activeRole].label} Dashboard</p>
-            <h1>Virtual Medical System</h1>
+            <h1>Medico</h1>
           </div>
           <button className="logout-btn" type="button" onClick={logout}>
             Logout
@@ -97,7 +97,7 @@ function App() {
           ♥
         </div>
 
-        <h1>Virtual Medical System</h1>
+        <h1>Medico</h1>
         <p className="subtitle">Login to access your dashboard</p>
 
         <form onSubmit={handleSubmit}>

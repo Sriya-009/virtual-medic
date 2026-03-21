@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const MENU_ITEMS = [
   { key: "overview", label: "Admin Dashboard" },
@@ -57,13 +57,134 @@ const ISSUE_ROWS = [
   { id: "TKT-1003", user: "Emily Parker", issue: "Wrong medicine in history", status: "Resolved" }
 ];
 
+const ALL_USERS = [
+  { name: "Dr. Sarah Johnson", email: "sarah.j@hospital.com", role: "Doctor", department: "Cardiology", status: "Active" },
+  { name: "Dr. Michael Chen", email: "michael.c@hospital.com", role: "Doctor", department: "Neurology", status: "Active" },
+  { name: "Emily Parker", email: "emily.p@hospital.com", role: "Pharmacist", department: "Pharmacy", status: "Active" },
+  { name: "John Smith", email: "john.s@hospital.com", role: "Patient", department: "N/A", status: "Active" },
+  { name: "Dr. Lisa Wong", email: "lisa.w@hospital.com", role: "Doctor", department: "Pediatrics", status: "Inactive" },
+  { name: "James Miller", email: "james.m@hospital.com", role: "Patient", department: "N/A", status: "Active" },
+  { name: "Admin User", email: "admin@hospital.com", role: "Admin", department: "Administration", status: "Active" }
+];
+
 function AdminModule() {
   const [activeMenu, setActiveMenu] = useState("overview");
+  const [userSearch, setUserSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [users, setUsers] = useState(ALL_USERS);
+  const [editingUserEmail, setEditingUserEmail] = useState("");
+  const [deleteUserEmail, setDeleteUserEmail] = useState("");
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    role: "",
+    department: "",
+    status: "Active"
+  });
 
   const menuTitle = useMemo(() => {
     const item = MENU_ITEMS.find((entry) => entry.key === activeMenu);
     return item ? item.label : "Admin Dashboard";
   }, [activeMenu]);
+
+  const filteredUsers = useMemo(() => {
+    const query = userSearch.trim().toLowerCase();
+    if (!query) {
+      return users;
+    }
+
+    return users.filter((user) => {
+      return (
+        user.name.toLowerCase().includes(query) ||
+        user.email.toLowerCase().includes(query) ||
+        user.role.toLowerCase().includes(query) ||
+        user.department.toLowerCase().includes(query) ||
+        user.status.toLowerCase().includes(query)
+      );
+    });
+  }, [userSearch, users]);
+
+  const usersPerPage = 5;
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * usersPerPage;
+    return filteredUsers.slice(start, start + usersPerPage);
+  }, [currentPage, filteredUsers]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [userSearch]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const userToEdit = users.find((user) => user.email === editingUserEmail);
+  const userToDelete = users.find((user) => user.email === deleteUserEmail);
+
+  const startEditUser = (user) => {
+    setEditingUserEmail(user.email);
+    setEditForm({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department,
+      status: user.status
+    });
+  };
+
+  const handleEditField = (event) => {
+    const { name, value } = event.target;
+    setEditForm((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const saveUserEdit = () => {
+    const trimmedName = editForm.name.trim();
+    const trimmedEmail = editForm.email.trim();
+    const trimmedDepartment = editForm.department.trim();
+
+    if (!trimmedName || !trimmedEmail) {
+      return;
+    }
+
+    const hasDuplicateEmail = users.some(
+      (user) => user.email === trimmedEmail && user.email !== editingUserEmail
+    );
+    if (hasDuplicateEmail) {
+      return;
+    }
+
+    setUsers((prev) =>
+      prev.map((user) => {
+        if (user.email !== editingUserEmail) {
+          return user;
+        }
+
+        return {
+          name: trimmedName,
+          email: trimmedEmail,
+          role: editForm.role,
+          department: trimmedDepartment || "N/A",
+          status: editForm.status
+        };
+      })
+    );
+    setEditingUserEmail("");
+  };
+
+  const confirmDeleteUser = () => {
+    if (!deleteUserEmail) {
+      return;
+    }
+
+    setUsers((prev) => prev.filter((user) => user.email !== deleteUserEmail));
+    setDeleteUserEmail("");
+  };
 
   const renderSection = () => {
     if (activeMenu === "system-control") {
@@ -82,7 +203,7 @@ function AdminModule() {
           <div className="erp-form-grid">
             <div>
               <label>System Name</label>
-              <input value="Virtual Medical System" readOnly />
+              <input value="Medico" readOnly />
             </div>
             <div>
               <label>Timezone</label>
@@ -275,6 +396,98 @@ function AdminModule() {
             <button type="button" onClick={() => setActiveMenu("issue-handling")}>Resolve Open Tickets</button>
           </div>
         </div>
+
+        <div className="quick-section">
+          <div className="users-heading-row">
+            <h4>All Users</h4>
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={userSearch}
+              onChange={(event) => setUserSearch(event.target.value)}
+            />
+          </div>
+
+          <div className="table-wrap">
+            <table className="erp-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Department</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedUsers.length > 0 ? (
+                  paginatedUsers.map((user) => (
+                    <tr key={`${user.email}-${user.role}`}>
+                      <td>{user.name}</td>
+                      <td>{user.email}</td>
+                      <td>{user.role}</td>
+                      <td>{user.department}</td>
+                      <td>
+                        <span className={user.status === "Active" ? "status-badge active" : "status-badge inactive"}>
+                          {user.status}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="table-actions">
+                          <button
+                            type="button"
+                            aria-label={`Edit ${user.name}`}
+                            onClick={() => startEditUser(user)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="danger"
+                            aria-label={`Delete ${user.name}`}
+                            onClick={() => setDeleteUserEmail(user.email)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6">No users found for this search.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="table-pagination">
+            <p>
+              Showing {paginatedUsers.length} of {filteredUsers.length} users
+            </p>
+            <div>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </button>
+              <span>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
       </section>
     );
   };
@@ -301,10 +514,93 @@ function AdminModule() {
       <div className="admin-main-area">
         <header className="admin-title-row">
           <h2>{menuTitle}</h2>
-          <p>Virtual Medical System Administration</p>
+          <p>Medico Administration</p>
         </header>
         {renderSection()}
       </div>
+
+      {userToEdit ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <h3>Edit User</h3>
+            <p>Update user details and save changes.</p>
+
+            <div className="modal-form-grid">
+              <label>
+                Name
+                <input
+                  name="name"
+                  type="text"
+                  value={editForm.name}
+                  onChange={handleEditField}
+                />
+              </label>
+
+              <label>
+                Email
+                <input
+                  name="email"
+                  type="email"
+                  value={editForm.email}
+                  onChange={handleEditField}
+                />
+              </label>
+
+              <label>
+                Role
+                <select name="role" value={editForm.role} onChange={handleEditField}>
+                  <option value="Admin">Admin</option>
+                  <option value="Doctor">Doctor</option>
+                  <option value="Pharmacist">Pharmacist</option>
+                  <option value="Patient">Patient</option>
+                </select>
+              </label>
+
+              <label>
+                Department
+                <input
+                  name="department"
+                  type="text"
+                  value={editForm.department}
+                  onChange={handleEditField}
+                />
+              </label>
+
+              <label>
+                Status
+                <select name="status" value={editForm.status} onChange={handleEditField}>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="modal-actions">
+              <button type="button" onClick={() => setEditingUserEmail("")}>Cancel</button>
+              <button className="erp-primary-btn" type="button" onClick={saveUserEdit}>
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {userToDelete ? (
+        <div className="modal-backdrop" role="alertdialog" aria-modal="true">
+          <div className="modal-card delete-modal">
+            <h3>Delete User</h3>
+            <p>
+              Are you sure you want to delete <strong>{userToDelete.name}</strong>?
+            </p>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setDeleteUserEmail("")}>Cancel</button>
+              <button className="danger-solid" type="button" onClick={confirmDeleteUser}>
+                Delete User
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

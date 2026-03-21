@@ -517,9 +517,6 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
       <div className="patient-erp-shell pharmacist-erp-shell">
         {/* Left Sidebar */}
         <aside className="patient-left-panel pharmacist-left-panel">
-          <h2>Pharmacist Portal</h2>
-          <p>ERP Navigation</p>
-
           {uiNotice ? <p className="pharmacist-notice">{uiNotice}</p> : null}
 
           <nav className="erp-side-nav pharmacist-erp-side-nav">

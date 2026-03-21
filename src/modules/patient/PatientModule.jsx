@@ -16,8 +16,9 @@ const MENU_GROUPS = [
     label: "Records & Finance",
     items: [
       { key: "medical-records", label: "Medical Records" },
-      { key: "prescription-medicines", label: "Prescription & Medicines" },
-      { key: "payment-management", label: "Payment Management" }
+      { key: "prescriptions", label: "Prescriptions" },
+      { key: "payment-history", label: "Payment History" },
+      { key: "billing", label: "Billing" }
     ]
   },
   {
@@ -158,7 +159,12 @@ function normalizeAppointment(entry) {
 
 function PatientModule({ currentUsername = "patient" }) {
   const [activeMenu, setActiveMenu] = useState("home");
-  const [openGroup, setOpenGroup] = useState("care-access");
+  const [openGroups, setOpenGroups] = useState({
+    "care-access": true,
+    "records-finance": true,
+    account: true,
+    support: true
+  });
   const [uiNotice, setUiNotice] = useState("");
   const [doctorSearch, setDoctorSearch] = useState({ text: "", specialization: "All", availability: "All" });
 
@@ -281,7 +287,7 @@ function PatientModule({ currentUsername = "patient" }) {
         detail: "Next: March 25, 2026"
       },
       {
-        key: "prescription-medicines",
+        key: "prescriptions",
         label: "Active Prescriptions",
         value: activePrescriptions.length,
         detail: "1 refill needed"
@@ -293,7 +299,7 @@ function PatientModule({ currentUsername = "patient" }) {
         detail: "Last updated today"
       },
       {
-        key: "payment-management",
+        key: "billing",
         label: "Health Score",
         value: "85%",
         detail: "Good condition"
@@ -812,10 +818,10 @@ function PatientModule({ currentUsername = "patient" }) {
       );
     }
 
-    if (activeMenu === "prescription-medicines") {
+    if (activeMenu === "prescriptions") {
       return (
         <section className="erp-panel">
-          <h3>Prescription & Medicines</h3>
+          <h3>Prescriptions</h3>
           <p>Receive prescriptions, send to pharmacist, and order medicines.</p>
           <div className="table-wrap">
             <table className="erp-table">
@@ -854,11 +860,79 @@ function PatientModule({ currentUsername = "patient" }) {
       );
     }
 
-    if (activeMenu === "payment-management") {
+    if (activeMenu === "payment-history") {
       return (
         <section className="erp-panel">
-          <h3>Payment Management</h3>
-          <p>Make payments for consultations/medicines and view payment history.</p>
+          <h3>Payment History</h3>
+          <p>Track completed payments and transaction references.</p>
+          <div className="quick-section">
+            <h4>Payment History</h4>
+            <div className="table-wrap">
+              <table className="erp-table">
+                <thead>
+                  <tr>
+                    <th>Paid At</th>
+                    <th>Item</th>
+                    <th>Amount</th>
+                    <th>Method</th>
+                    <th>Reference</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.length > 0 ? (
+                    payments.map((entry) => (
+                      <tr key={entry.id}>
+                        <td>{entry.paidAt}</td>
+                        <td>{entry.item}</td>
+                        <td>${entry.amount}</td>
+                        <td>{entry.method}{entry.cardLast4 ? ` •••• ${entry.cardLast4}` : ""}</td>
+                        <td>{entry.reference}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5">No payments made yet.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (activeMenu === "billing") {
+      return (
+        <section className="erp-panel">
+          <h3>Billing</h3>
+          <p>View invoices, pending bills, and complete payments.</p>
+
+          <div className="quick-section">
+            <h4>Billing Summary</h4>
+            <div className="erp-stats-grid">
+              <article className="erp-stat-card">
+                <h4>Total Invoices</h4>
+                <p>{invoices.length}</p>
+                <span>Generated bills</span>
+              </article>
+              <article className="erp-stat-card">
+                <h4>Pending</h4>
+                <p>{pendingInvoices.length}</p>
+                <span>Awaiting payment</span>
+              </article>
+              <article className="erp-stat-card">
+                <h4>Paid</h4>
+                <p>{invoices.filter((entry) => entry.status === "Paid").length}</p>
+                <span>Completed invoices</span>
+              </article>
+              <article className="erp-stat-card">
+                <h4>Outstanding</h4>
+                <p>${pendingInvoices.reduce((sum, entry) => sum + entry.amount, 0)}</p>
+                <span>Total due amount</span>
+              </article>
+            </div>
+          </div>
 
           <div className="quick-section">
             <h4>Pending Payments</h4>
@@ -897,32 +971,30 @@ function PatientModule({ currentUsername = "patient" }) {
           </div>
 
           <div className="quick-section">
-            <h4>Payment History</h4>
+            <h4>All Invoices</h4>
             <div className="table-wrap">
               <table className="erp-table">
                 <thead>
                   <tr>
-                    <th>Paid At</th>
+                    <th>Invoice ID</th>
                     <th>Item</th>
                     <th>Amount</th>
-                    <th>Method</th>
-                    <th>Reference</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {payments.length > 0 ? (
-                    payments.map((entry) => (
+                  {invoices.length > 0 ? (
+                    invoices.map((entry) => (
                       <tr key={entry.id}>
-                        <td>{entry.paidAt}</td>
+                        <td>{entry.id}</td>
                         <td>{entry.item}</td>
                         <td>${entry.amount}</td>
-                        <td>{entry.method}{entry.cardLast4 ? ` •••• ${entry.cardLast4}` : ""}</td>
-                        <td>{entry.reference}</td>
+                        <td>{entry.status}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="5">No payments made yet.</td>
+                      <td colSpan="4">No invoices available.</td>
                     </tr>
                   )}
                 </tbody>
@@ -993,8 +1065,8 @@ function PatientModule({ currentUsername = "patient" }) {
           description: "Quick answers about appointments, payments, and prescriptions.",
           points: [
             "Use Appointment Booking to create or reschedule visits.",
-            "Use Payment Management to clear pending invoices.",
-            "Use Prescription and Medicines to send to pharmacist."
+            "Use Billing to clear pending invoices.",
+            "Use Prescriptions to send medicines to pharmacist."
           ]
         },
         "contact-support": {
@@ -1111,22 +1183,24 @@ function PatientModule({ currentUsername = "patient" }) {
   return (
     <section className="patient-erp-shell">
       <aside className="patient-left-panel">
-        <h2>Patient Portal</h2>
-        <p>ERP Navigation</p>
-
         <nav className="erp-side-nav patient-erp-side-nav">
           {MENU_GROUPS.map((group) => (
             <div key={group.key} className="erp-nav-group patient-erp-nav-group">
               <button
                 type="button"
                 className="erp-group-btn patient-erp-group-btn"
-                onClick={() => setOpenGroup((prev) => (prev === group.key ? "" : group.key))}
+                onClick={() =>
+                  setOpenGroups((prev) => ({
+                    ...prev,
+                    [group.key]: !prev[group.key]
+                  }))
+                }
               >
                 <span>{group.label}</span>
-                <span aria-hidden="true">{openGroup === group.key ? "▼" : "▶"}</span>
+                <span aria-hidden="true">{openGroups[group.key] ? "▼" : "▶"}</span>
               </button>
 
-              {openGroup === group.key ? (
+              {openGroups[group.key] ? (
                 <div className="erp-group-items patient-erp-group-items">
                   {group.items.map((item) => (
                     <button

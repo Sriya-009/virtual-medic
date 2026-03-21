@@ -116,7 +116,8 @@ const STORAGE_KEYS = {
   prescriptions: "medico.shared.prescriptions",
   availability: "medico.doctor.availability",
   profile: "medico.doctor.profile",
-  consultationLogs: "medico.doctor.consultationLogs"
+  consultationLogs: "medico.doctor.consultationLogs",
+  scheduleBlocks: "medico.doctor.scheduleBlocks"
 };
 
 const DEFAULT_AVAILABILITY = {
@@ -170,7 +171,11 @@ function normalizeAppointment(entry) {
 
 function DoctorModule({ currentUsername = "doctor" }) {
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [openGroup, setOpenGroup] = useState("overview");
+  const [openGroups, setOpenGroups] = useState({
+    overview: true,
+    clinical: true,
+    insights: true
+  });
   const [uiNotice, setUiNotice] = useState("");
   const [appointmentRows, setAppointmentRows] = useState(() => {
     const shared = readStorage(STORAGE_KEYS.appointments, SHARED_DEFAULT_APPOINTMENTS);
@@ -213,6 +218,15 @@ function DoctorModule({ currentUsername = "doctor" }) {
     mode: "",
     note: ""
   });
+  const [scheduleForm, setScheduleForm] = useState({ date: "", time: "", reason: "" });
+  const [scheduleBlocks, setScheduleBlocks] = useState(() =>
+    readStorage(STORAGE_KEYS.scheduleBlocks, [])
+  );
+  const [showMessagesPanel, setShowMessagesPanel] = useState(false);
+  const [messageDraft, setMessageDraft] = useState("");
+  const [selectedPatientId, setSelectedPatientId] = useState("P-01");
+  const [doctorMessages, setDoctorMessages] = useState([]);
+  const [readNotificationIds, setReadNotificationIds] = useState([]);
 
   const showNotice = (message) => {
     setUiNotice(message);
@@ -241,6 +255,37 @@ function DoctorModule({ currentUsername = "doctor" }) {
   const doctorPrescriptions = useMemo(
     () => prescriptions.filter((entry) => entry.prescribedBy === CURRENT_DOCTOR_NAME),
     [prescriptions]
+  );
+
+  const selectedPatient = useMemo(
+    () => PATIENTS.find((patient) => patient.id === selectedPatientId) || PATIENTS[0],
+    [selectedPatientId]
+  );
+
+  const notifications = useMemo(() => {
+    const appointmentAlerts = doctorAppointments
+      .filter((entry) => entry.status === "Requested")
+      .map((entry) => ({
+        id: `appt-${entry.id}`,
+        text: `New appointment request from ${entry.patientName} on ${entry.date} ${entry.time}`
+      }));
+
+    const messageAlerts = consultationLogs.slice(0, 4).map((entry, index) => ({
+      id: `msg-${entry.date}-${entry.patient}-${index}`,
+      text: `Message update from ${entry.patient} (${entry.mode})`
+    }));
+
+    const prescriptionAlerts = doctorPrescriptions.slice(0, 2).map((entry) => ({
+      id: `rx-${entry.id}`,
+      text: `Prescription ready: ${entry.medicine} for ${entry.patientName}`
+    }));
+
+    return [...appointmentAlerts, ...messageAlerts, ...prescriptionAlerts];
+  }, [doctorAppointments, consultationLogs, doctorPrescriptions]);
+
+  const unreadNotifications = useMemo(
+    () => notifications.filter((entry) => !readNotificationIds.includes(entry.id)),
+    [notifications, readNotificationIds]
   );
 
   const filteredPatients = useMemo(() => {
@@ -358,11 +403,56 @@ function DoctorModule({ currentUsername = "doctor" }) {
 
   const handleNotificationsAction = (action) => {
     if (action === "mark-read") {
+      setReadNotificationIds(notifications.map((entry) => entry.id));
       showNotice("All notifications marked as read.");
       return;
     }
 
+    setShowMessagesPanel((prev) => !prev);
     showNotice("Messages panel opened.");
+  };
+
+  const addScheduleBlock = () => {
+    if (!scheduleForm.date || !scheduleForm.time || !scheduleForm.reason.trim()) {
+      showNotice("Please complete date, time, and reason.");
+      return;
+    }
+
+    setScheduleBlocks((prev) => [
+      {
+        id: `SCH-${Date.now()}`,
+        date: scheduleForm.date,
+        time: scheduleForm.time,
+        reason: scheduleForm.reason.trim()
+      },
+      ...prev
+    ]);
+    setScheduleForm({ date: "", time: "", reason: "" });
+    showNotice("Schedule updated.");
+  };
+
+  const removeScheduleBlock = (id) => {
+    setScheduleBlocks((prev) => prev.filter((entry) => entry.id !== id));
+    showNotice("Schedule entry removed.");
+  };
+
+  const sendDoctorMessage = () => {
+    if (!selectedPatient || !messageDraft.trim()) {
+      showNotice("Select patient and enter a message.");
+      return;
+    }
+
+    setDoctorMessages((prev) => [
+      {
+        id: `DM-${Date.now()}`,
+        patientName: selectedPatient.name,
+        body: messageDraft.trim(),
+        sentAt: new Date().toLocaleString()
+      },
+      ...prev
+    ]);
+    setMessageDraft("");
+    showNotice(`Message sent to ${selectedPatient.name}.`);
   };
 
   const saveDoctorProfile = () => {
@@ -499,24 +589,31 @@ function DoctorModule({ currentUsername = "doctor" }) {
     localStorage.setItem(STORAGE_KEYS.consultationLogs, JSON.stringify(consultationLogs));
   }, [consultationLogs]);
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.scheduleBlocks, JSON.stringify(scheduleBlocks));
+  }, [scheduleBlocks]);
+
   return (
     <section className="doctor-erp-shell">
       <aside className="doctor-left-panel">
-        <h2>Doctor Portal</h2>
-        <p>ERP Navigation</p>
         <nav className="erp-side-nav doctor-erp-side-nav">
           {TABS.map((group) => (
             <div key={group.key} className="erp-nav-group doctor-erp-nav-group">
               <button
                 type="button"
                 className="erp-group-btn doctor-erp-group-btn"
-                onClick={() => setOpenGroup((prev) => (prev === group.key ? "" : group.key))}
+                onClick={() =>
+                  setOpenGroups((prev) => ({
+                    ...prev,
+                    [group.key]: !prev[group.key]
+                  }))
+                }
               >
                 <span>{group.label}</span>
-                <span aria-hidden="true">{openGroup === group.key ? "▼" : "▶"}</span>
+                <span aria-hidden="true">{openGroups[group.key] ? "▼" : "▶"}</span>
               </button>
 
-              {openGroup === group.key ? (
+              {openGroups[group.key] ? (
                 <div className="erp-group-items doctor-erp-group-items">
                   {group.items.map((tab) => (
                     <button
@@ -563,7 +660,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
             </article>
             <article className="erp-stat-card">
               <h4>Pending Notifications</h4>
-              <p>{NOTIFICATIONS.length}</p>
+              <p>{unreadNotifications.length}</p>
               <span>Needs your attention</span>
             </article>
           </div>
@@ -676,6 +773,72 @@ function DoctorModule({ currentUsername = "doctor" }) {
               </article>
             </div>
 
+            <div className="quick-section">
+              <h4>Manage Schedule</h4>
+              <div className="erp-form-grid">
+                <label>
+                  Date
+                  <input
+                    type="date"
+                    value={scheduleForm.date}
+                    onChange={(event) => setScheduleForm((prev) => ({ ...prev, date: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  Time
+                  <input
+                    type="time"
+                    value={scheduleForm.time}
+                    onChange={(event) => setScheduleForm((prev) => ({ ...prev, time: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  Reason
+                  <input
+                    value={scheduleForm.reason}
+                    onChange={(event) => setScheduleForm((prev) => ({ ...prev, reason: event.target.value }))}
+                    placeholder="Leave, meeting, blocked slot"
+                  />
+                </label>
+              </div>
+              <button className="erp-primary-btn" type="button" onClick={addScheduleBlock}>
+                Add Schedule Block
+              </button>
+
+              <div className="table-wrap">
+                <table className="erp-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Reason</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scheduleBlocks.length > 0 ? (
+                      scheduleBlocks.map((entry) => (
+                        <tr key={entry.id}>
+                          <td>{entry.date}</td>
+                          <td>{entry.time}</td>
+                          <td>{entry.reason}</td>
+                          <td>
+                            <button type="button" onClick={() => removeScheduleBlock(entry.id)}>
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="4">No custom schedule blocks yet.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
           </section>
         ) : null}
 
@@ -778,6 +941,32 @@ function DoctorModule({ currentUsername = "doctor" }) {
           <section className="erp-panel">
             <h3>Medical Records Management</h3>
             <p>Access and update diagnosis, symptoms, and notes for each patient.</p>
+
+            <div className="quick-section">
+              <h4>View Patient History</h4>
+              <div className="table-wrap">
+                <table className="erp-table">
+                  <thead>
+                    <tr>
+                      <th>Patient</th>
+                      <th>Age</th>
+                      <th>History</th>
+                      <th>Last Visit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {PATIENTS.map((patient) => (
+                      <tr key={patient.id}>
+                        <td>{patient.name}</td>
+                        <td>{patient.age}</td>
+                        <td>{patient.history}</td>
+                        <td>{patient.lastVisit}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
             <div className="erp-form-grid">
               <label>
@@ -1025,18 +1214,84 @@ function DoctorModule({ currentUsername = "doctor" }) {
             <h3>Notifications</h3>
             <p>Get alerts for appointments and patient messages.</p>
             <ul className="alert-list">
-              {NOTIFICATIONS.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
+              {notifications.length > 0 ? (
+                notifications.map((item) => (
+                  <li key={item.id}>
+                    {item.text}
+                    {readNotificationIds.includes(item.id) ? " (read)" : ""}
+                  </li>
+                ))
+              ) : (
+                <li>No notifications.</li>
+              )}
             </ul>
             <div className="inline-actions">
               <button type="button" onClick={() => handleNotificationsAction("mark-read")}>
                 Mark All as Read
               </button>
               <button type="button" onClick={() => handleNotificationsAction("open-messages")}>
-                Open Messages
+                {showMessagesPanel ? "Hide Messages" : "Open Messages"}
               </button>
             </div>
+
+            {showMessagesPanel ? (
+              <div className="quick-section">
+                <h4>Messages</h4>
+                <div className="erp-form-grid">
+                  <label>
+                    Patient
+                    <select
+                      value={selectedPatientId}
+                      onChange={(event) => setSelectedPatientId(event.target.value)}
+                    >
+                      {PATIENTS.map((patient) => (
+                        <option key={patient.id} value={patient.id}>
+                          {patient.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label style={{ gridColumn: "1 / -1" }}>
+                    Message
+                    <input
+                      value={messageDraft}
+                      onChange={(event) => setMessageDraft(event.target.value)}
+                      placeholder="Type a message to patient"
+                    />
+                  </label>
+                </div>
+                <button className="erp-primary-btn" type="button" onClick={sendDoctorMessage}>
+                  Send Message
+                </button>
+
+                <div className="table-wrap">
+                  <table className="erp-table">
+                    <thead>
+                      <tr>
+                        <th>Sent At</th>
+                        <th>Patient</th>
+                        <th>Message</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {doctorMessages.length > 0 ? (
+                        doctorMessages.map((entry) => (
+                          <tr key={entry.id}>
+                            <td>{entry.sentAt}</td>
+                            <td>{entry.patientName}</td>
+                            <td>{entry.body}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="3">No messages sent yet.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
           </section>
         ) : null}
 

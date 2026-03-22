@@ -34,6 +34,26 @@ function App() {
   const [forgotError, setForgotError] = useState("");
   const [forgotSuccess, setForgotSuccess] = useState("");
 
+  // Sign Up States
+  const [showSignup, setShowSignup] = useState(false);
+  const [signupForm, setSignupForm] = useState({
+    fullname: "",
+    phone: "",
+    role: "patient",
+    username: "",
+    password: "",
+    confirmPassword: ""
+  });
+  const [signupError, setSignupError] = useState("");
+  const [signupSuccess, setSignupSuccess] = useState("");
+
+  // Password Visibility States
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showSignupConfirmPassword, setShowSignupConfirmPassword] = useState(false);
+  const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
+  const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
+
   const ActiveModule = useMemo(() => {
     if (activeRole === "admin") {
       return AdminModule;
@@ -202,6 +222,83 @@ function App() {
     setForgotSuccess("");
   };
 
+  // Sign Up Handlers
+  const handleSignupClick = (e) => {
+    e.preventDefault();
+    setShowSignup(true);
+    setSignupError("");
+    setSignupSuccess("");
+  };
+
+  const handleSignupChange = (e) => {
+    const { name, value } = e.target;
+    setSignupForm((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSignupSubmit = (e) => {
+    e.preventDefault();
+    setSignupError("");
+    setSignupSuccess("");
+
+    if (!signupForm.fullname.trim() || !signupForm.phone.trim() || !signupForm.username.trim() || !signupForm.password || !signupForm.confirmPassword) {
+      setSignupError("Please fill all fields");
+      return;
+    }
+
+    if (signupForm.password.length < 6) {
+      setSignupError("Password must be at least 6 characters");
+      return;
+    }
+
+    if (signupForm.password !== signupForm.confirmPassword) {
+      setSignupError("Passwords do not match");
+      return;
+    }
+
+    // Check if user already exists
+    const userExists = Object.values(DEMO_CREDENTIALS).some(
+      (cred) => cred.username === signupForm.username
+    );
+
+    if (userExists) {
+      setSignupError("Username already exists. Please choose a different username.");
+      return;
+    }
+
+    // In a real app, this would save to the backend
+    setSignupSuccess("Account created successfully! Redirecting to login...");
+    setTimeout(() => {
+      setShowSignup(false);
+      setSignupForm({
+        fullname: "",
+        phone: "",
+        role: "patient",
+        username: "",
+        password: "",
+        confirmPassword: ""
+      });
+      setForm({ username: "", password: "", remember: false });
+      setError("");
+    }, 2000);
+  };
+
+  const handleBackToLoginFromSignup = () => {
+    setShowSignup(false);
+    setSignupForm({
+      fullname: "",
+      phone: "",
+      role: "patient",
+      username: "",
+      password: "",
+      confirmPassword: ""
+    });
+    setSignupError("");
+    setSignupSuccess("");
+  };
+
   if (ActiveModule) {
     return (
       <div className="dashboard-shell">
@@ -218,6 +315,124 @@ function App() {
         <main className="dashboard-content">
           <ActiveModule currentUsername={activeUsername || DEMO_CREDENTIALS[activeRole].username} />
         </main>
+      </div>
+    );
+  }
+
+  // Sign Up Modal
+  if (showSignup) {
+    return (
+      <div className="login-shell">
+        <section className="login-card signup-card">
+          <div className="brand-badge" aria-hidden="true">
+            ♥
+          </div>
+
+          <h1>Create Account</h1>
+          <p className="subtitle">Join Medico to access healthcare services</p>
+
+          <form onSubmit={handleSignupSubmit}>
+            <label htmlFor="fullname">Full Name</label>
+            <input
+              id="fullname"
+              name="fullname"
+              type="text"
+              placeholder="Enter your full name"
+              value={signupForm.fullname}
+              onChange={handleSignupChange}
+            />
+
+            <label htmlFor="phone">Phone Number</label>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              placeholder="Enter your phone number"
+              value={signupForm.phone}
+              onChange={handleSignupChange}
+            />
+
+            <label htmlFor="role">Role</label>
+            <select
+              id="role"
+              name="role"
+              value={signupForm.role}
+              onChange={handleSignupChange}
+            >
+              <option value="patient">Patient</option>
+              <option value="doctor">Doctor</option>
+              <option value="pharmacist">Pharmacist</option>
+            </select>
+
+            <label htmlFor="username">Username</label>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              placeholder="Choose a username"
+              value={signupForm.username}
+              onChange={handleSignupChange}
+            />
+
+            <label htmlFor="password">Password</label>
+            <div className="password-input-wrapper">
+              <input
+                id="password"
+                name="password"
+                type={showSignupPassword ? "text" : "password"}
+                placeholder="Create a password"
+                value={signupForm.password}
+                onChange={handleSignupChange}
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowSignupPassword(!showSignupPassword)}
+                aria-label={showSignupPassword ? "Hide password" : "Show password"}
+              >
+                {showSignupPassword ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
+            <p style={{ fontSize: "12px", color: "#999", marginTop: "-0.5rem" }}>
+              Password must be at least 6 characters
+            </p>
+
+            <label htmlFor="confirmPassword">Confirm Password</label>
+            <div className="password-input-wrapper">
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type={showSignupConfirmPassword ? "text" : "password"}
+                placeholder="Confirm your password"
+                value={signupForm.confirmPassword}
+                onChange={handleSignupChange}
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowSignupConfirmPassword(!showSignupConfirmPassword)}
+                aria-label={showSignupConfirmPassword ? "Hide password" : "Show password"}
+              >
+                {showSignupConfirmPassword ? "👁️" : "👁️‍🗨️"}
+              </button>
+            </div>
+
+            {signupError ? <p className="form-error">{signupError}</p> : null}
+            {signupSuccess ? <p className="form-success">{signupSuccess}</p> : null}
+
+            <button className="primary-btn" type="submit">
+              Sign Up
+            </button>
+
+            <button
+              type="button"
+              onClick={handleBackToLoginFromSignup}
+              style={{ marginTop: "0.5rem", background: "#666", color: "#fff", border: "none", padding: "0.75rem 1.5rem", borderRadius: "6px", cursor: "pointer", width: "100%" }}
+            >
+              Back to Login
+            </button>
+          </form>
+        </section>
       </div>
     );
   }
@@ -311,22 +526,42 @@ function App() {
               </p>
 
               <label htmlFor="new-password">New Password</label>
-              <input
-                id="new-password"
-                type="password"
-                placeholder="Enter new password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
+              <div className="password-input-wrapper">
+                <input
+                  id="new-password"
+                  type={showForgotNewPassword ? "text" : "password"}
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                  aria-label={showForgotNewPassword ? "Hide password" : "Show password"}
+                >
+                  {showForgotNewPassword ? "👁️" : "👁️‍🗨️"}
+                </button>
+              </div>
 
               <label htmlFor="confirm-password">Confirm Password</label>
-              <input
-                id="confirm-password"
-                type="password"
-                placeholder="Confirm new password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
+              <div className="password-input-wrapper">
+                <input
+                  id="confirm-password"
+                  type={showForgotConfirmPassword ? "text" : "password"}
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowForgotConfirmPassword(!showForgotConfirmPassword)}
+                  aria-label={showForgotConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showForgotConfirmPassword ? "👁️" : "👁️‍🗨️"}
+                </button>
+              </div>
 
               <p style={{ fontSize: "12px", color: "#999", marginTop: "-0.5rem" }}>
                 Password must be at least 6 characters
@@ -380,14 +615,24 @@ function App() {
               Forgot password?
             </button>
           </div>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            placeholder="Enter password"
-            value={form.password}
-            onChange={handleChange}
-          />
+          <div className="password-input-wrapper">
+            <input
+              id="password"
+              name="password"
+              type={showLoginPassword ? "text" : "password"}
+              placeholder="Enter password"
+              value={form.password}
+              onChange={handleChange}
+            />
+            <button
+              type="button"
+              className="password-toggle-btn"
+              onClick={() => setShowLoginPassword(!showLoginPassword)}
+              aria-label={showLoginPassword ? "Hide password" : "Show password"}
+            >
+              {showLoginPassword ? "👁️" : "👁️‍🗨️"}
+            </button>
+          </div>
 
           <label className="remember-row" htmlFor="remember">
             <input
@@ -408,7 +653,7 @@ function App() {
         </form>
 
         <p className="signup-copy">
-          Don't have an account? <button type="button">Sign up here</button>
+          Don't have an account? <button type="button" onClick={handleSignupClick}>Sign up here</button>
         </p>
 
         <hr />

@@ -1506,6 +1506,44 @@ hr {
   max-width: 480px;
 }
 
+/* Sign Up Styling */
+.signup-card {
+  max-width: 500px;
+}
+
+/* Password Input Wrapper */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.password-input-wrapper input {
+  flex: 1;
+  margin-bottom: 0;
+  padding-right: 45px;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.password-toggle-btn:hover {
+  color: #d61f73;
+}
+
 .form-error {
   background: #ffebee;
   color: #c62828;

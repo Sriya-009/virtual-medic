@@ -3,13 +3,7 @@ import AdminModule from "./modules/admin/AdminModule";
 import DoctorModule from "./modules/doctor/DoctorModule";
 import PatientModule from "./modules/patient/PatientModule";
 import PharmacistModule from "./modules/pharmacist/PharmacistModule";
-
-const DEMO_CREDENTIALS = {
-  admin: { username: "admin", password: "admin123", label: "Admin", phone: "+1-800-123-4567" },
-  doctor: { username: "doctor", password: "doctor123", label: "Doctor", phone: "+1-800-223-4567" },
-  patient: { username: "patient", password: "patient123", label: "Patient", phone: "+1-800-323-4567" },
-  pharmacist: { username: "pharmacist", password: "pharmacist123", label: "Pharmacist", phone: "+1-800-423-4567" }
-};
+import { authAPI } from "./lib/api";
 
 function App() {
   const [form, setForm] = useState({
@@ -82,7 +76,7 @@ function App() {
     }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (!form.username.trim() || !form.password) {
@@ -90,29 +84,42 @@ function App() {
       return;
     }
 
-    // Auto-detect role by checking credentials against all roles
-    let matchedRole = null;
-    for (const [roleKey, credentials] of Object.entries(DEMO_CREDENTIALS)) {
-      if (
-        form.username.trim() === credentials.username &&
-        form.password === credentials.password
-      ) {
-        matchedRole = roleKey;
-        break;
+    try {
+      // Call backend API to authenticate
+      const response = await authAPI.login({
+        username: form.username.trim(),
+        password: form.password
+      });
+
+      // Expect response with token and user role
+      const { token, role, username } = response.data;
+
+      if (!token) {
+        setError("Authentication failed. No token received.");
+        return;
       }
-    }
 
-    if (!matchedRole) {
-      setError("Invalid username or password.");
-      return;
-    }
+      // Store token and user info in localStorage
+      localStorage.setItem("medico.auth.token", token);
+      localStorage.setItem("medico.user.username", username);
+      localStorage.setItem("medico.user.role", role);
 
-    setError("");
-    setActiveRole(matchedRole);
-    setActiveUsername(form.username.trim());
+      setError("");
+      setActiveRole(role);
+      setActiveUsername(username);
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || "Invalid username or password.";
+      setError(errorMessage);
+      console.error("Login error:", err);
+    }
   };
 
   const logout = () => {
+    // Clear JWT token on logout
+    localStorage.removeItem("medico.auth.token");
+    localStorage.removeItem("medico.user.username");
+    localStorage.removeItem("medico.user.role");
+    
     setActiveRole("");
     setActiveUsername("");
     setForm((prev) => ({ ...prev, password: "" }));
@@ -136,27 +143,12 @@ function App() {
       return;
     }
 
-    // Auto-detect role from phone number
-    let matchedRole = null;
-    for (const [roleKey, credentials] of Object.entries(DEMO_CREDENTIALS)) {
-      if (forgotPhone.trim() === credentials.phone) {
-        matchedRole = roleKey;
-        break;
-      }
-    }
-
-    if (!matchedRole) {
-      setForgotError("Phone number not found in registered accounts");
-      return;
-    }
-
     // Generate random 4-digit OTP
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     setGeneratedOtp(otp);
-    setDetectedRole(matchedRole);
-    setRegisteredPhone(DEMO_CREDENTIALS[matchedRole].phone);
+    setRegisteredPhone(forgotPhone.trim());
     setForgotStep("otp");
-    setForgotSuccess(`OTP sent to ${DEMO_CREDENTIALS[matchedRole].phone}`);
+    setForgotSuccess(`OTP sent to ${forgotPhone.trim()}`);
   };
 
   const handleOtpSubmit = (e) => {
@@ -238,7 +230,7 @@ function App() {
     }));
   };
 
-  const handleSignupSubmit = (e) => {
+  const handleSignupSubmit = async (e) => {
     e.preventDefault();
     setSignupError("");
     setSignupSuccess("");
@@ -258,31 +250,49 @@ function App() {
       return;
     }
 
-    // Check if user already exists
-    const userExists = Object.values(DEMO_CREDENTIALS).some(
-      (cred) => cred.username === signupForm.username
-    );
-
-    if (userExists) {
-      setSignupError("Username already exists. Please choose a different username.");
-      return;
-    }
-
-    // In a real app, this would save to the backend
-    setSignupSuccess("Account created successfully! Redirecting to login...");
-    setTimeout(() => {
-      setShowSignup(false);
-      setSignupForm({
-        fullname: "",
-        phone: "",
-        role: "patient",
-        username: "",
-        password: "",
-        confirmPassword: ""
+    try {
+      // Call backend API to create account
+      const response = await authAPI.signup({
+        username: signupForm.username,
+        fullname: signupForm.fullname,
+        phone: signupForm.phone,
+        role: signupForm.role,
+        password: signupForm.password
       });
-      setForm({ username: "", password: "", remember: false });
-      setError("");
-    }, 2000);
+
+      const { token, role, username } = response.data;
+
+      if (!token) {
+        setSignupError("Account creation failed. No token received.");
+        return;
+      }
+
+      // Store token and user info in localStorage
+      localStorage.setItem("medico.auth.token", token);
+      localStorage.setItem("medico.user.username", username);
+      localStorage.setItem("medico.user.role", role);
+
+      setSignupSuccess("Account created successfully! Redirecting to dashboard...");
+      setTimeout(() => {
+        setShowSignup(false);
+        setSignupForm({
+          fullname: "",
+          phone: "",
+          role: "patient",
+          username: "",
+          password: "",
+          confirmPassword: ""
+        });
+        setForm({ username: "", password: "", remember: false });
+        setActiveRole(role);
+        setActiveUsername(username);
+        setError("");
+      }, 2000);
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || "Error creating account. Please try again.";
+      setSignupError(errorMessage);
+      console.error("Signup error:", err);
+    }
   };
 
   const handleBackToLoginFromSignup = () => {
@@ -305,7 +315,7 @@ function App() {
         <header className="dashboard-topbar">
           <div>
             <h1>Medico</h1>
-            <p className="dashboard-role">{activeUsername || DEMO_CREDENTIALS[activeRole].username}</p>
+            <p className="dashboard-role">{activeUsername}</p>
           </div>
           <button className="logout-btn" type="button" onClick={logout}>
             Logout
@@ -313,7 +323,7 @@ function App() {
         </header>
 
         <main className="dashboard-content">
-          <ActiveModule currentUsername={activeUsername || DEMO_CREDENTIALS[activeRole].username} />
+          <ActiveModule currentUsername={activeUsername} />
         </main>
       </div>
     );
@@ -656,21 +666,6 @@ function App() {
           Don't have an account? <button type="button" onClick={handleSignupClick}>Sign up here</button>
         </p>
 
-        <hr />
-
-        <section className="demo-section">
-          <h2>Demo Credentials</h2>
-          <div className="demo-grid">
-            {Object.values(DEMO_CREDENTIALS).map((account) => (
-              <article key={account.label} className="demo-card">
-                <h3>{account.label}</h3>
-                <p>
-                  {account.username} / {account.password}
-                </p>
-              </article>
-            ))}
-          </div>
-        </section>
       </section>
     </div>
   );

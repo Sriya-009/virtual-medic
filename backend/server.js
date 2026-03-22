@@ -8,6 +8,7 @@ import usersRoutes from './routes/usersRoutes.js';
 import doctorsRoutes from './routes/doctorsRoutes.js';
 import patientsRoutes from './routes/patientsRoutes.js';
 import pharmacistsRoutes from './routes/pharmacistsRoutes.js';
+import { ensureBootstrapAdmin } from './utils/bootstrapAdmin.js';
 
 dotenv.config();
 
@@ -41,7 +42,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`API available at http://localhost:${PORT}/api`);
-});
+const startServer = async () => {
+  await ensureBootstrapAdmin();
+
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`API available at http://localhost:${PORT}/api`);
+  });
+};
+
+startServer();

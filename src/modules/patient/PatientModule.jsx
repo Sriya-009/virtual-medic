@@ -4,7 +4,6 @@ const MENU_GROUPS = [
   {
     key: "home-main",
     label: "Home",
-    icon: "🏠",
     mainMenu: "home",
     items: [
       { key: "home-dashboard", label: "Dashboard overview", targetMenu: "home" }
@@ -13,7 +12,6 @@ const MENU_GROUPS = [
   {
     key: "doctor-search-main",
     label: "Doctor Search",
-    icon: "👨‍⚕️",
     mainMenu: "doctor-search",
     items: [
       { key: "search-by-name", label: "By Name", targetMenu: "doctor-search" },
@@ -24,7 +22,6 @@ const MENU_GROUPS = [
   {
     key: "appointment-booking-main",
     label: "Appointment Booking",
-    icon: "📅",
     mainMenu: "appointment-booking",
     items: [
       { key: "book-appointment", label: "Book Appointment", targetMenu: "appointment-booking" },
@@ -35,7 +32,6 @@ const MENU_GROUPS = [
   {
     key: "virtual-consultation-main",
     label: "Virtual Consultation",
-    icon: "💻",
     mainMenu: "virtual-consultation",
     items: [
       { key: "join-consultation", label: "Join Consultation", targetMenu: "virtual-consultation" },
@@ -45,7 +41,6 @@ const MENU_GROUPS = [
   {
     key: "medical-records-main",
     label: "Medical Records",
-    icon: "📋",
     mainMenu: "medical-records",
     items: [
       { key: "view-history", label: "Medical History", targetMenu: "medical-records" },
@@ -55,7 +50,6 @@ const MENU_GROUPS = [
   {
     key: "prescription-main",
     label: "Prescriptions",
-    icon: "💊",
     mainMenu: "prescriptions",
     items: [
       { key: "view-prescriptions", label: "View Prescriptions", targetMenu: "prescriptions" },
@@ -65,7 +59,6 @@ const MENU_GROUPS = [
   {
     key: "payment-management-main",
     label: "Payments",
-    icon: "💳",
     mainMenu: "billing",
     items: [
       { key: "view-invoices", label: "Invoices", targetMenu: "billing" },
@@ -75,7 +68,6 @@ const MENU_GROUPS = [
   {
     key: "profile-management-main",
     label: "Profile",
-    icon: "👤",
     mainMenu: "profile",
     items: [
       { key: "edit-profile", label: "Edit Profile", targetMenu: "edit-profile" },
@@ -1278,8 +1270,7 @@ function PatientModule({ currentUsername = "patient" }) {
                 aria-expanded={openGroups[group.key]}
               >
                 <span className="menu-label">
-                  <span className="menu-icon">{group.icon}</span>
-                  <span>{group.label}</span>
+                  {group.label}
                 </span>
                 <span className="menu-toggle" aria-hidden="true">{openGroups[group.key] ? "−" : "+"}</span>
               </button>

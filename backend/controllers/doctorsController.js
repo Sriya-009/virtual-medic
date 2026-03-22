@@ -42,6 +42,8 @@ export const getDoctorsBySpecialization = async (req, res) => {
 
 export const updateDoctor = async (req, res) => {
   try {
+    console.log('Update request:', req.body);
+
     const { id } = req.params;
     const { fullname, phone, specialization } = req.body;
 
@@ -49,7 +51,7 @@ export const updateDoctor = async (req, res) => {
       [fullname, phone, specialization, id]);
     res.json({ message: 'Doctor updated successfully' });
   } catch (err) {
-    console.log(err);
+    console.log('Update DB Error:', err);
     console.error('Error updating doctor:', err);
     res.status(500).json({ message: err.message });
   }

@@ -17,6 +17,8 @@ const normalizeAllowedRole = (requestedRole) => {
 
 export const signup = async (req, res) => {
   try {
+    console.log('Signup request:', req.body);
+
     const { username, password, role, phone, email } = req.body;
 
     if (!username || !password) {
@@ -39,10 +41,15 @@ export const signup = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user with requested schema mapping.
-    await pool.query(
-      'INSERT INTO users (name, email, password, role, phone) VALUES (?, ?, ?, ?, ?)',
-      [username, generatedEmail, hashedPassword, resolvedRole, phone || null]
-    );
+    try {
+      await pool.query(
+        'INSERT INTO users (name, email, password, role, phone) VALUES (?, ?, ?, ?, ?)',
+        [username, generatedEmail, hashedPassword, resolvedRole, phone || null]
+      );
+    } catch (err) {
+      console.log('Signup DB Error:', err);
+      return res.status(500).json({ message: err.message });
+    }
 
     const jwtConfig = getJwtConfig();
 
@@ -57,12 +64,14 @@ export const signup = async (req, res) => {
   } catch (err) {
     console.log(err);
     console.error('Signup error:', err);
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };
 
 export const login = async (req, res) => {
   try {
+    console.log('Login request:', req.body);
+
     const { username, password } = req.body;
 
     if (!username || !password) {
@@ -70,13 +79,20 @@ export const login = async (req, res) => {
     }
 
     const usernameAsEmail = `${username}@app.com`;
-    const [rows] = await pool.query(
-      'SELECT * FROM users WHERE email = ? OR name = ? OR email = ? LIMIT 1',
-      [username, username, usernameAsEmail]
-    );
+    let rows;
+    try {
+      [rows] = await pool.query(
+        'SELECT * FROM users WHERE email = ? OR name = ? OR email = ? LIMIT 1',
+        [username, username, usernameAsEmail]
+      );
+    } catch (err) {
+      console.log('Login DB Error:', err);
+      return res.status(500).json({ message: err.message });
+    }
 
     const user = rows[0];
     if (!user) {
+      console.log('User not found for:', req.body.username);
       return res.status(401).json({ message: 'Invalid username or password' });
     }
 
@@ -87,9 +103,10 @@ export const login = async (req, res) => {
     }
 
     // Verify password with bcrypt
-    const isValidPassword = await bcrypt.compare(password, storedPassword);
+    const isMatch = await bcrypt.compare(password, storedPassword);
+    console.log('Password match:', isMatch);
 
-    if (!isValidPassword) {
+    if (!isMatch) {
       return res.status(401).json({ message: 'Invalid username or password' });
     }
 
@@ -116,8 +133,9 @@ export const login = async (req, res) => {
       }
     });
   } catch (err) {
+    console.log('Login DB Error:', err);
     console.log(err);
     console.error('Login error:', err);
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };

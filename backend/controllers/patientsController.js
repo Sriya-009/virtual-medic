@@ -30,6 +30,8 @@ export const getPatientById = async (req, res) => {
 
 export const updatePatient = async (req, res) => {
   try {
+    console.log('Update request:', req.body);
+
     const { id } = req.params;
     const { fullname, phone } = req.body;
 
@@ -37,7 +39,7 @@ export const updatePatient = async (req, res) => {
       [fullname, phone, id]);
     res.json({ message: 'Patient updated successfully' });
   } catch (err) {
-    console.log(err);
+    console.log('Update DB Error:', err);
     console.error('Error updating patient:', err);
     res.status(500).json({ message: err.message });
   }

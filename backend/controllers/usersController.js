@@ -48,13 +48,15 @@ export const getUsersByRole = async (req, res) => {
 
 export const updateUser = async (req, res) => {
   try {
+    console.log('Update request:', req.body);
+
     const { id } = req.params;
     const { fullname, phone } = req.body;
 
     await pool.query('UPDATE users SET fullname = ?, phone = ? WHERE id = ?', [fullname, phone, id]);
     res.json({ message: 'User updated successfully' });
   } catch (err) {
-    console.log(err);
+    console.log('Update DB Error:', err);
     console.error('Error updating user:', err);
     res.status(500).json({ message: err.message });
   }

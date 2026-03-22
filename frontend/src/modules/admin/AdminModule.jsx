@@ -167,7 +167,19 @@ function AdminModule({ currentUsername = "admin" }) {
         return ROLE_ACCESS;
       }
       const parsed = JSON.parse(raw);
-      return parsed ?? ROLE_ACCESS;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return ROLE_ACCESS;
+      }
+      const normalized = Object.entries(parsed).reduce((acc, [role, permissions]) => {
+        if (!Array.isArray(permissions)) {
+          acc[role] = [];
+          return acc;
+        }
+        acc[role] = permissions.filter((permission) => typeof permission === "string");
+        return acc;
+      }, {});
+
+      return Object.keys(normalized).length > 0 ? normalized : ROLE_ACCESS;
     } catch {
       return ROLE_ACCESS;
     }

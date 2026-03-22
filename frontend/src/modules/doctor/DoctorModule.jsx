@@ -208,6 +208,16 @@ function readStorage(key, fallbackValue) {
   }
 }
 
+function readArrayStorage(key, fallbackValue) {
+  const value = readStorage(key, fallbackValue);
+  return Array.isArray(value) ? value : fallbackValue;
+}
+
+function readObjectStorage(key, fallbackValue) {
+  const value = readStorage(key, fallbackValue);
+  return value && typeof value === "object" && !Array.isArray(value) ? value : fallbackValue;
+}
+
 function normalizeAppointment(entry) {
   return {
     id: entry.id || `AP-${Date.now()}`,
@@ -255,20 +265,20 @@ function DoctorModule({ currentUsername = "doctor" }) {
   });
   const [uiNotice, setUiNotice] = useState("");
   const [appointmentRows, setAppointmentRows] = useState(() => {
-    const shared = readStorage(STORAGE_KEYS.appointments, SHARED_DEFAULT_APPOINTMENTS);
+    const shared = readArrayStorage(STORAGE_KEYS.appointments, SHARED_DEFAULT_APPOINTMENTS);
     return shared.map(normalizeAppointment);
   });
   const [patientSearch, setPatientSearch] = useState("");
   const [recordForm, setRecordForm] = useState({ patientId: "P-01", diagnosis: "", symptoms: "", notes: "" });
-  const [medicalRecords, setMedicalRecords] = useState(() => readStorage(STORAGE_KEYS.records, []));
+  const [medicalRecords, setMedicalRecords] = useState(() => readArrayStorage(STORAGE_KEYS.records, []));
   const [fileUploadPatientId, setFileUploadPatientId] = useState("P-01");
   const [uploadedFileSearch, setUploadedFileSearch] = useState("");
   const [pendingPatientFiles, setPendingPatientFiles] = useState([]);
   const [fileInputKey, setFileInputKey] = useState(0);
-  const [uploadedPatientFiles, setUploadedPatientFiles] = useState(() => readStorage(STORAGE_KEYS.patientFiles, []));
+  const [uploadedPatientFiles, setUploadedPatientFiles] = useState(() => readArrayStorage(STORAGE_KEYS.patientFiles, []));
   const [previewFile, setPreviewFile] = useState(null);
   const [consultationLogs, setConsultationLogs] = useState(() =>
-    readStorage(STORAGE_KEYS.consultationLogs, CONSULTATION_LOGS)
+    readArrayStorage(STORAGE_KEYS.consultationLogs, CONSULTATION_LOGS)
   );
   const [prescriptionForm, setPrescriptionForm] = useState({
     patientId: "P-01",
@@ -280,19 +290,19 @@ function DoctorModule({ currentUsername = "doctor" }) {
   });
   const [editingPrescriptionId, setEditingPrescriptionId] = useState("");
   const [prescriptions, setPrescriptions] = useState(() =>
-    readStorage(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS)
+    readArrayStorage(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS)
   );
   const [availability, setAvailability] = useState(() => ({
     ...DEFAULT_AVAILABILITY,
-    ...readStorage(STORAGE_KEYS.availability, DEFAULT_AVAILABILITY)
+    ...readObjectStorage(STORAGE_KEYS.availability, DEFAULT_AVAILABILITY)
   }));
   const [profileForm, setProfileForm] = useState(() => ({
     ...DEFAULT_PROFILE,
-    ...readStorage(STORAGE_KEYS.profile, DEFAULT_PROFILE)
+    ...readObjectStorage(STORAGE_KEYS.profile, DEFAULT_PROFILE)
   }));
   const [profileDraft, setProfileDraft] = useState(() => ({
     ...DEFAULT_PROFILE,
-    ...readStorage(STORAGE_KEYS.profile, DEFAULT_PROFILE)
+    ...readObjectStorage(STORAGE_KEYS.profile, DEFAULT_PROFILE)
   }));
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [consultationModal, setConsultationModal] = useState({
@@ -303,7 +313,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
   });
   const [scheduleForm, setScheduleForm] = useState({ date: "", time: "", reason: "" });
   const [scheduleBlocks, setScheduleBlocks] = useState(() =>
-    readStorage(STORAGE_KEYS.scheduleBlocks, [])
+    readArrayStorage(STORAGE_KEYS.scheduleBlocks, [])
   );
   const [showMessagesPanel, setShowMessagesPanel] = useState(false);
   const [messageDraft, setMessageDraft] = useState("");

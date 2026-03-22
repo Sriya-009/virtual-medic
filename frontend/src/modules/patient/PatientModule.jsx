@@ -179,6 +179,16 @@ function getStored(key, fallbackValue) {
   }
 }
 
+function getStoredArray(key, fallbackValue) {
+  const value = getStored(key, fallbackValue);
+  return Array.isArray(value) ? value : fallbackValue;
+}
+
+function getStoredObject(key, fallbackValue) {
+  const value = getStored(key, fallbackValue);
+  return value && typeof value === "object" && !Array.isArray(value) ? value : fallbackValue;
+}
+
 function normalizeAppointment(entry) {
   return {
     id: entry.id || `AP-${Date.now()}`,
@@ -240,7 +250,7 @@ function PatientModule({ currentUsername = "patient" }) {
   const [doctorSearch, setDoctorSearch] = useState({ name: "", specialization: "All", availability: "All" });
 
   const [appointments, setAppointments] = useState(() =>
-    getStored(STORAGE_KEYS.appointments, SHARED_DEFAULT_APPOINTMENTS).map(normalizeAppointment)
+    getStoredArray(STORAGE_KEYS.appointments, SHARED_DEFAULT_APPOINTMENTS).map(normalizeAppointment)
   );
   const [bookingForm, setBookingForm] = useState({ doctorId: "D-1", date: "", time: "" });
 
@@ -254,19 +264,19 @@ function PatientModule({ currentUsername = "patient" }) {
   const [chatLog, setChatLog] = useState([]);
 
   const [prescriptions, setPrescriptions] = useState(() =>
-    getStored(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS)
+    getStoredArray(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS)
   );
-  const [uploadedPatientFiles] = useState(() => getStored(STORAGE_KEYS.patientFiles, []));
+  const [uploadedPatientFiles] = useState(() => getStoredArray(STORAGE_KEYS.patientFiles, []));
 
   const [invoices, setInvoices] = useState(() =>
-    getStored(STORAGE_KEYS.invoices, INITIAL_INVOICES).map(normalizeMoneyEntryAmount)
+    getStoredArray(STORAGE_KEYS.invoices, INITIAL_INVOICES).map(normalizeMoneyEntryAmount)
   );
   const [payments, setPayments] = useState(() =>
-    getStored(STORAGE_KEYS.payments, []).map(normalizeMoneyEntryAmount)
+    getStoredArray(STORAGE_KEYS.payments, []).map(normalizeMoneyEntryAmount)
   );
 
   const [profile, setProfile] = useState(() =>
-    getStored(STORAGE_KEYS.profile, {
+    getStoredObject(STORAGE_KEYS.profile, {
       name: "John Doe",
       phone: "+1 555-881-021",
       email: "john.doe@email.com",

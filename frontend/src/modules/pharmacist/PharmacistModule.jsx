@@ -150,6 +150,16 @@ function readStorage(key, fallbackValue) {
   }
 }
 
+function readArrayStorage(key, fallbackValue) {
+  const value = readStorage(key, fallbackValue);
+  return Array.isArray(value) ? value : fallbackValue;
+}
+
+function readObjectStorage(key, fallbackValue) {
+  const value = readStorage(key, fallbackValue);
+  return value && typeof value === "object" && !Array.isArray(value) ? value : fallbackValue;
+}
+
 function normalizePrescription(entry) {
   return {
     id: entry.id || `RX-${Date.now()}`,
@@ -180,18 +190,18 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
 
   // Prescriptions data
   const [prescriptions, setPrescriptions] = useState(() => {
-    const shared = readStorage(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS);
+    const shared = readArrayStorage(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS);
     return shared.map(normalizePrescription);
   });
 
   // Inventory management
-  const [inventory, setInventory] = useState(() => readStorage(STORAGE_KEYS.inventory, DEFAULT_MEDICINE_INVENTORY));
+  const [inventory, setInventory] = useState(() => readArrayStorage(STORAGE_KEYS.inventory, DEFAULT_MEDICINE_INVENTORY));
 
   // Orders management
-  const [orders, setOrders] = useState(() => readStorage(STORAGE_KEYS.orders, DEFAULT_ORDERS));
+  const [orders, setOrders] = useState(() => readArrayStorage(STORAGE_KEYS.orders, DEFAULT_ORDERS));
 
   // Transactions
-  const [transactions, setTransactions] = useState(() => readStorage(STORAGE_KEYS.transactions, DEFAULT_TRANSACTIONS));
+  const [transactions, setTransactions] = useState(() => readArrayStorage(STORAGE_KEYS.transactions, DEFAULT_TRANSACTIONS));
 
   // Verification states
   const [verificationForm, setVerificationForm] = useState({ prescriptionId: "", verificationNotes: "", approved: false });
@@ -220,7 +230,7 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
 
   // Profile
   const [profile, setProfile] = useState(() => {
-    return readStorage(STORAGE_KEYS.profile, {
+    return readObjectStorage(STORAGE_KEYS.profile, {
       name: CURRENT_PHARMACIST_NAME,
       id: CURRENT_PHARMACIST_ID,
       email: "pharmacist@medico.com",

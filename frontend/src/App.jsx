@@ -3,7 +3,86 @@ import AdminModule from "./modules/admin/AdminModule";
 import DoctorModule from "./modules/doctor/DoctorModule";
 import PatientModule from "./modules/patient/PatientModule";
 import PharmacistModule from "./modules/pharmacist/PharmacistModule";
-import { authAPI } from "./lib/api";
+
+const STORAGE_USERS_KEY = "medico.dummy.users";
+const DEFAULT_DUMMY_USERS = [
+  { username: "admin", password: "admin009", role: "admin", fullname: "Admin User", phone: "9000000001" },
+  { username: "doctor", password: "doctor123", role: "doctor", fullname: "Doctor User", phone: "9000000002" },
+  { username: "patient", password: "patient123", role: "patient", fullname: "Patient User", phone: "9000000003" },
+  { username: "pharmacist", password: "pharma123", role: "pharmacist", fullname: "Pharmacist User", phone: "9000000004" }
+];
+
+const DEMO_USERS = [
+  { role: "Admin", username: "admin", password: "admin009" },
+  { role: "Doctor", username: "doctor", password: "doctor123" },
+  { role: "Patient", username: "patient", password: "patient123" },
+  { role: "Pharmacist", username: "pharmacist", password: "pharma123" }
+];
+
+const normalizeDummyUser = (user) => {
+  if (!user || typeof user !== "object") {
+    return null;
+  }
+
+  const username = String(user.username || "").trim();
+  const password = String(user.password || "");
+  const role = String(user.role || "patient").toLowerCase();
+  const fullname = String(user.fullname || username || "User").trim();
+  const phone = String(user.phone || "").trim();
+
+  if (!username || !password) {
+    return null;
+  }
+
+  return {
+    username,
+    password,
+    role,
+    fullname,
+    phone
+  };
+};
+
+const mergeWithDefaultUsers = (inputUsers) => {
+  const normalizedInput = Array.isArray(inputUsers)
+    ? inputUsers.map(normalizeDummyUser).filter(Boolean)
+    : [];
+
+  const mergedByUsername = new Map(
+    normalizedInput.map((user) => [user.username.toLowerCase(), user])
+  );
+
+  DEFAULT_DUMMY_USERS.forEach((defaultUser) => {
+    const key = defaultUser.username.toLowerCase();
+    if (!mergedByUsername.has(key)) {
+      mergedByUsername.set(key, { ...defaultUser });
+    }
+  });
+
+  return Array.from(mergedByUsername.values());
+};
+
+const loadDummyUsers = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_USERS_KEY);
+    if (!raw) {
+      localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(DEFAULT_DUMMY_USERS));
+      return DEFAULT_DUMMY_USERS;
+    }
+
+    const parsed = JSON.parse(raw);
+    const merged = mergeWithDefaultUsers(parsed);
+    localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(merged));
+    return merged;
+  } catch {
+    localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(DEFAULT_DUMMY_USERS));
+    return DEFAULT_DUMMY_USERS;
+  }
+};
+
+const saveDummyUsers = (users) => {
+  localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(users));
+};
 
 function App() {
   const [form, setForm] = useState({
@@ -14,6 +93,7 @@ function App() {
   const [error, setError] = useState("");
   const [activeRole, setActiveRole] = useState("");
   const [activeUsername, setActiveUsername] = useState("");
+  const [dummyUsers, setDummyUsers] = useState(() => loadDummyUsers());
 
   // Forgot Password States
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -48,6 +128,21 @@ function App() {
   const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
   const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
 
+  const resetDemoAccounts = () => {
+    setDummyUsers(DEFAULT_DUMMY_USERS);
+    saveDummyUsers(DEFAULT_DUMMY_USERS);
+    setForm((prev) => ({ ...prev, username: "", password: "" }));
+    setError("");
+    setSignupError("");
+    setSignupSuccess("Demo accounts reset.");
+    setTimeout(() => setSignupSuccess(""), 1500);
+  };
+
+  const fillDemoCredentials = (username, password) => {
+    setForm((prev) => ({ ...prev, username, password }));
+    setError("");
+  };
+
   const ActiveModule = useMemo(() => {
     if (activeRole === "admin") {
       return AdminModule;
@@ -76,7 +171,7 @@ function App() {
     }));
   };
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = (event) => {
     event.preventDefault();
 
     if (!form.username.trim() || !form.password) {
@@ -84,42 +179,22 @@ function App() {
       return;
     }
 
-    try {
-      // Call backend API to authenticate
-      const response = await authAPI.login({
-        username: form.username.trim(),
-        password: form.password
-      });
+    const normalizedUsername = form.username.trim().toLowerCase();
+    const foundUser = dummyUsers.find(
+      (user) => user.username.toLowerCase() === normalizedUsername
+    );
 
-      // Expect response with token and user role
-      const { token, role, username } = response.data;
-
-      if (!token) {
-        setError("Authentication failed. No token received.");
-        return;
-      }
-
-      // Store token and user info in localStorage
-      localStorage.setItem("medico.auth.token", token);
-      localStorage.setItem("medico.user.username", username);
-      localStorage.setItem("medico.user.role", role);
-
-      setError("");
-      setActiveRole(role);
-      setActiveUsername(username);
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || "Invalid username or password.";
-      setError(errorMessage);
-      console.error("Login error:", err);
+    if (!foundUser || foundUser.password !== form.password) {
+      setError("Invalid username or password.");
+      return;
     }
+
+    setError("");
+    setActiveRole(foundUser.role);
+    setActiveUsername(foundUser.username);
   };
 
   const logout = () => {
-    // Clear JWT token on logout
-    localStorage.removeItem("medico.auth.token");
-    localStorage.removeItem("medico.user.username");
-    localStorage.removeItem("medico.user.role");
-    
     setActiveRole("");
     setActiveUsername("");
     setForm((prev) => ({ ...prev, password: "" }));
@@ -143,12 +218,21 @@ function App() {
       return;
     }
 
+    const normalizedPhone = forgotPhone.trim();
+    const foundUser = dummyUsers.find((user) => String(user.phone || "").trim() === normalizedPhone);
+    if (!foundUser) {
+      setForgotError("No account found for this phone number");
+      return;
+    }
+
+    setDetectedRole(String(foundUser.role || "patient"));
+
     // Generate random 4-digit OTP
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     setGeneratedOtp(otp);
-    setRegisteredPhone(forgotPhone.trim());
+    setRegisteredPhone(normalizedPhone);
     setForgotStep("otp");
-    setForgotSuccess(`OTP sent to ${forgotPhone.trim()}`);
+    setForgotSuccess(`OTP sent to ${normalizedPhone}`);
   };
 
   const handleOtpSubmit = (e) => {
@@ -188,7 +272,19 @@ function App() {
       return;
     }
 
-    // In a real app, this would update the backend
+    const updatedUsers = dummyUsers.map((user) => {
+      if (String(user.phone || "").trim() !== registeredPhone) {
+        return user;
+      }
+      return {
+        ...user,
+        password: newPassword
+      };
+    });
+
+    setDummyUsers(updatedUsers);
+    saveDummyUsers(updatedUsers);
+
     setForgotSuccess("Password reset successful! Redirecting to login...");
     setTimeout(() => {
       setShowForgotPassword(false);
@@ -230,7 +326,7 @@ function App() {
     }));
   };
 
-  const handleSignupSubmit = async (e) => {
+  const handleSignupSubmit = (e) => {
     e.preventDefault();
     setSignupError("");
     setSignupSuccess("");
@@ -250,49 +346,48 @@ function App() {
       return;
     }
 
-    try {
-      // Call backend API to create account
-      const response = await authAPI.signup({
-        username: signupForm.username,
-        fullname: signupForm.fullname,
-        phone: signupForm.phone,
-        role: signupForm.role,
-        password: signupForm.password
-      });
+    const normalizedUsername = signupForm.username.trim().toLowerCase();
+    const normalizedRole = String(signupForm.role || "patient").toLowerCase();
+    const allowedRoles = new Set(["admin", "doctor", "patient", "pharmacist"]);
+    const roleToStore = allowedRoles.has(normalizedRole) ? normalizedRole : "patient";
 
-      const { token, role, username } = response.data;
+    const exists = dummyUsers.some(
+      (user) => user.username.toLowerCase() === normalizedUsername
+    );
 
-      if (!token) {
-        setSignupError("Account creation failed. No token received.");
-        return;
-      }
-
-      // Store token and user info in localStorage
-      localStorage.setItem("medico.auth.token", token);
-      localStorage.setItem("medico.user.username", username);
-      localStorage.setItem("medico.user.role", role);
-
-      setSignupSuccess("Account created successfully! Redirecting to dashboard...");
-      setTimeout(() => {
-        setShowSignup(false);
-        setSignupForm({
-          fullname: "",
-          phone: "",
-          role: "patient",
-          username: "",
-          password: "",
-          confirmPassword: ""
-        });
-        setForm({ username: "", password: "", remember: false });
-        setActiveRole(role);
-        setActiveUsername(username);
-        setError("");
-      }, 2000);
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || "Error creating account. Please try again.";
-      setSignupError(errorMessage);
-      console.error("Signup error:", err);
+    if (exists) {
+      setSignupError("Username already exists.");
+      return;
     }
+
+    const createdUser = {
+      fullname: signupForm.fullname.trim(),
+      phone: signupForm.phone.trim(),
+      role: roleToStore,
+      username: signupForm.username.trim(),
+      password: signupForm.password
+    };
+
+    const updatedUsers = [...dummyUsers, createdUser];
+    setDummyUsers(updatedUsers);
+    saveDummyUsers(updatedUsers);
+
+    setSignupSuccess("Account created successfully! Redirecting to dashboard...");
+    setTimeout(() => {
+      setShowSignup(false);
+      setSignupForm({
+        fullname: "",
+        phone: "",
+        role: "patient",
+        username: "",
+        password: "",
+        confirmPassword: ""
+      });
+      setForm({ username: "", password: "", remember: false });
+      setActiveRole(createdUser.role);
+      setActiveUsername(createdUser.username);
+      setError("");
+    }, 700);
   };
 
   const handleBackToLoginFromSignup = () => {
@@ -494,6 +589,9 @@ function App() {
               <p style={{ textAlign: "center", color: "#666", marginBottom: "1rem" }}>
                 Enter the OTP sent to <strong>{registeredPhone}</strong>
               </p>
+              <p style={{ textAlign: "center", color: "#4b5563", marginBottom: "1rem", fontSize: "0.92rem" }}>
+                Account role detected: <strong>{detectedRole || "patient"}</strong>
+              </p>
 
               <label htmlFor="otp-input">One-Time Password (OTP)</label>
               <input
@@ -665,6 +763,36 @@ function App() {
         <p className="signup-copy">
           Don't have an account? <button type="button" onClick={handleSignupClick}>Sign up here</button>
         </p>
+
+        <hr />
+
+        <section className="demo-section">
+          <h2>Demo Role Logins</h2>
+          <div className="demo-grid">
+            {DEMO_USERS.map((entry) => (
+              <article className="demo-card" key={entry.username}>
+                <h3>{entry.role}</h3>
+                <p>User: {entry.username}</p>
+                <p>Pass: {entry.password}</p>
+                <button
+                  type="button"
+                  className="link-btn"
+                  onClick={() => fillDemoCredentials(entry.username, entry.password)}
+                >
+                  Use this login
+                </button>
+              </article>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="link-btn"
+            style={{ marginTop: "0.9rem", fontWeight: 700 }}
+            onClick={resetDemoAccounts}
+          >
+            Reset demo accounts
+          </button>
+        </section>
 
       </section>
     </div>

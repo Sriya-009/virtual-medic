@@ -18,6 +18,27 @@ const getUsersSchema = async () => {
   };
 };
 
+const findUserForLogin = async (schema, loginId) => {
+  // Default path: identifier column is already username.
+  if (schema.username !== 'email') {
+    const [rows] = await pool.query(`SELECT * FROM users WHERE ${schema.username} = ? LIMIT 1`, [loginId]);
+    return rows[0] || null;
+  }
+
+  // Email-schema path: accept exact email, local-part of email (admin from admin@gmail.com), and name fallback.
+  const fallbackNameColumn = schema.fullname || 'email';
+  const [rows] = await pool.query(
+    `SELECT * FROM users
+     WHERE email = ?
+        OR SUBSTRING_INDEX(email, '@', 1) = ?
+        OR ${fallbackNameColumn} = ?
+     LIMIT 1`,
+    [loginId, loginId, loginId]
+  );
+
+  return rows[0] || null;
+};
+
 export const signup = async (req, res) => {
   try {
     const { username, password, fullname, phone, role } = req.body;
@@ -102,12 +123,11 @@ export const login = async (req, res) => {
     }
 
     // Find user
-    const [rows] = await pool.query(`SELECT * FROM users WHERE ${schema.username} = ? LIMIT 1`, [username]);
-    if (rows.length === 0) {
+    const user = await findUserForLogin(schema, username);
+    if (!user) {
       return res.status(401).json({ message: 'Invalid username or password' });
     }
 
-    const user = rows[0];
     const storedPassword = user.password;
 
     if (!storedPassword) {

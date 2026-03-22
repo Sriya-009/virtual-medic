@@ -7,6 +7,13 @@ const BCRYPT_PREFIX = /^\$2[aby]\$/;
 const getUsersSchema = async () => {
   const [columns] = await pool.query('SHOW COLUMNS FROM users');
   const names = new Set(columns.map((column) => String(column.Field).toLowerCase()));
+  const roleColumn = columns.find((column) => String(column.Field).toLowerCase() === 'role');
+
+  let allowedRoles = [];
+  if (roleColumn && typeof roleColumn.Type === 'string' && roleColumn.Type.toLowerCase().startsWith('enum(')) {
+    const matches = roleColumn.Type.match(/'([^']+)'/g) || [];
+    allowedRoles = matches.map((entry) => entry.replace(/'/g, ''));
+  }
 
   return {
     id: names.has('id') ? 'id' : (names.has('user_id') ? 'user_id' : null),
@@ -14,8 +21,41 @@ const getUsersSchema = async () => {
     fullname: names.has('fullname') ? 'fullname' : (names.has('name') ? 'name' : null),
     hasPhone: names.has('phone'),
     hasRole: names.has('role'),
-    hasStatus: names.has('status')
+    hasStatus: names.has('status'),
+    allowedRoles
   };
+};
+
+const getJwtConfig = () => {
+  const secret = process.env.JWT_SECRET || 'temporary-dev-secret-change-in-production';
+  const expiresIn = process.env.JWT_EXPIRE || '24h';
+  return { secret, expiresIn };
+};
+
+const normalizeRole = (schema, requestedRole) => {
+  const fallback = 'patient';
+  if (!schema.hasRole) {
+    return fallback;
+  }
+
+  const role = requestedRole || fallback;
+  if (schema.allowedRoles.length === 0) {
+    return role;
+  }
+
+  return schema.allowedRoles.includes(role) ? role : fallback;
+};
+
+const normalizeSignupIdentifier = (schema, username) => {
+  if (schema.username !== 'email') {
+    return username;
+  }
+
+  if (username.includes('@')) {
+    return username;
+  }
+
+  return `${username}@app.local`;
 };
 
 const findUserForLogin = async (schema, loginId) => {
@@ -53,8 +93,20 @@ export const signup = async (req, res) => {
       return res.status(500).json({ message: 'Users table is missing required columns' });
     }
 
+    const normalizedIdentifier = normalizeSignupIdentifier(schema, username);
+    const resolvedRole = normalizeRole(schema, role);
+
     // Check if user exists
-    const [rows] = await pool.query(`SELECT ${schema.id} FROM users WHERE ${schema.username} = ?`, [username]);
+    let rows = [];
+    if (schema.username === 'email') {
+      [rows] = await pool.query(
+        `SELECT ${schema.id} FROM users WHERE email = ? OR SUBSTRING_INDEX(email, '@', 1) = ?`,
+        [normalizedIdentifier, username]
+      );
+    } else {
+      [rows] = await pool.query(`SELECT ${schema.id} FROM users WHERE ${schema.username} = ?`, [normalizedIdentifier]);
+    }
+
     if (rows.length > 0) {
       return res.status(400).json({ message: 'Username already exists' });
     }
@@ -64,7 +116,7 @@ export const signup = async (req, res) => {
 
     // Create user
     const insertColumns = [schema.username, 'password'];
-    const insertValues = [username, hashedPassword];
+    const insertValues = [normalizedIdentifier, hashedPassword];
 
     if (schema.fullname) {
       insertColumns.push(schema.fullname);
@@ -78,7 +130,7 @@ export const signup = async (req, res) => {
 
     if (schema.hasRole) {
       insertColumns.push('role');
-      insertValues.push(role || 'patient');
+      insertValues.push(resolvedRole);
     }
 
     if (schema.hasStatus) {
@@ -92,19 +144,19 @@ export const signup = async (req, res) => {
       insertValues
     );
 
-    const resolvedRole = schema.hasRole ? (role || 'patient') : 'patient';
+    const jwtConfig = getJwtConfig();
 
     // Generate token
     const token = jwt.sign(
       { username, role: resolvedRole },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE }
+      jwtConfig.secret,
+      { expiresIn: jwtConfig.expiresIn }
     );
 
     res.status(201).json({ token, role: resolvedRole, username });
   } catch (err) {
     console.error('Signup error:', err);
-    res.status(500).json({ message: 'Error creating account' });
+    res.status(500).json({ message: `Error creating account: ${err.message}` });
   }
 };
 
@@ -154,19 +206,20 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid username or password' });
     }
 
-    const resolvedRole = user.role || 'patient';
+    const resolvedRole = normalizeRole(schema, user.role || 'patient');
     const resolvedUsername = user[schema.username];
+    const jwtConfig = getJwtConfig();
 
     // Generate token
     const token = jwt.sign(
       { username: resolvedUsername, role: resolvedRole },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE }
+      jwtConfig.secret,
+      { expiresIn: jwtConfig.expiresIn }
     );
 
     res.json({ token, role: resolvedRole, username: resolvedUsername });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ message: 'Error logging in' });
+    res.status(500).json({ message: `Error logging in: ${err.message}` });
   }
 };

@@ -38,7 +38,8 @@ const TABS = [
     items: [
       { key: "records-history", label: "History", targetTab: "records" },
       { key: "records-diagnosis", label: "Diagnosis", targetTab: "records" },
-      { key: "records-notes", label: "Notes", targetTab: "records" }
+      { key: "records-notes", label: "Notes", targetTab: "records" },
+      { key: "records-files", label: "Upload Files", targetTab: "records" }
     ]
   },
   {
@@ -1312,6 +1313,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
             </div>
             ) : null}
 
+            {isSubSectionVisible(["records-files"]) ? (
             <div className="quick-section">
               <h4>Upload Patient Files</h4>
               <div className="erp-form-grid">
@@ -1403,6 +1405,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
                 </table>
               </div>
             </div>
+            ) : null}
 
             {isSubSectionVisible(["records-diagnosis", "records-notes"]) ? (
             <div className="quick-section">

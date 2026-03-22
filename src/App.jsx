@@ -207,9 +207,8 @@ function App() {
       <div className="dashboard-shell">
         <header className="dashboard-topbar">
           <div>
-            <p className="dashboard-role">{DEMO_CREDENTIALS[activeRole].label} Dashboard</p>
             <h1>Medico</h1>
-            <p className="dashboard-role">User: {activeUsername || DEMO_CREDENTIALS[activeRole].username}</p>
+            <p className="dashboard-role">{activeUsername || DEMO_CREDENTIALS[activeRole].username}</p>
           </div>
           <button className="logout-btn" type="button" onClick={logout}>
             Logout

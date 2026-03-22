@@ -5,8 +5,9 @@ export const getAllDoctors = async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM users WHERE role = "doctor"');
     res.json(rows);
   } catch (err) {
+    console.log(err);
     console.error('Error fetching doctors:', err);
-    res.status(500).json({ message: 'Error fetching doctors' });
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -21,8 +22,9 @@ export const getDoctorById = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
+    console.log(err);
     console.error('Error fetching doctor:', err);
-    res.status(500).json({ message: 'Error fetching doctor' });
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -32,8 +34,9 @@ export const getDoctorsBySpecialization = async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM users WHERE role = "doctor" AND specialization = ?', [specialization]);
     res.json(rows);
   } catch (err) {
+    console.log(err);
     console.error('Error fetching doctors:', err);
-    res.status(500).json({ message: 'Error fetching doctors' });
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -46,7 +49,8 @@ export const updateDoctor = async (req, res) => {
       [fullname, phone, specialization, id]);
     res.json({ message: 'Doctor updated successfully' });
   } catch (err) {
+    console.log(err);
     console.error('Error updating doctor:', err);
-    res.status(500).json({ message: 'Error updating doctor' });
+    res.status(500).json({ message: err.message });
   }
 };

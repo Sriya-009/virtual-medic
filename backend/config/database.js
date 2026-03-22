@@ -14,4 +14,16 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+const logConnectedDatabase = async () => {
+  try {
+    const [rows] = await pool.query('SELECT DATABASE() AS dbname');
+    const dbname = rows?.[0]?.dbname || 'unknown';
+    console.log(`Connected DB: ${dbname}`);
+  } catch (error) {
+    console.error('Database connection check failed:', error.message);
+  }
+};
+
+logConnectedDatabase();
+
 export default pool;

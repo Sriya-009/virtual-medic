@@ -1,12 +1,15 @@
 import pool from '../config/database.js';
 
+const ALLOWED_ROLES = new Set(['admin', 'patient', 'doctor']);
+
 export const getAllUsers = async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT id, username, fullname, phone, role FROM users');
     res.json(rows);
   } catch (err) {
+    console.log(err);
     console.error('Error fetching users:', err);
-    res.status(500).json({ message: 'Error fetching users' });
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -21,19 +24,25 @@ export const getUserById = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
+    console.log(err);
     console.error('Error fetching user:', err);
-    res.status(500).json({ message: 'Error fetching user' });
+    res.status(500).json({ message: err.message });
   }
 };
 
 export const getUsersByRole = async (req, res) => {
   try {
-    const { role } = req.params;
-    const [rows] = await pool.query('SELECT id, username, fullname, phone, role FROM users WHERE role = ?', [role]);
+    const normalizedRole = String(req.params.role || '').toLowerCase();
+    if (!ALLOWED_ROLES.has(normalizedRole)) {
+      return res.status(400).json({ message: 'Invalid role. Allowed values: admin, patient, doctor' });
+    }
+
+    const [rows] = await pool.query('SELECT id, username, fullname, phone, role FROM users WHERE role = ?', [normalizedRole]);
     res.json(rows);
   } catch (err) {
+    console.log(err);
     console.error('Error fetching users by role:', err);
-    res.status(500).json({ message: 'Error fetching users' });
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -45,7 +54,8 @@ export const updateUser = async (req, res) => {
     await pool.query('UPDATE users SET fullname = ?, phone = ? WHERE id = ?', [fullname, phone, id]);
     res.json({ message: 'User updated successfully' });
   } catch (err) {
+    console.log(err);
     console.error('Error updating user:', err);
-    res.status(500).json({ message: 'Error updating user' });
+    res.status(500).json({ message: err.message });
   }
 };

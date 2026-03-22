@@ -5,8 +5,9 @@ export const getAllPharmacists = async (req, res) => {
     const [rows] = await pool.query('SELECT id, username, fullname, phone, role FROM users WHERE role = "pharmacist"');
     res.json(rows);
   } catch (err) {
+    console.log(err);
     console.error('Error fetching pharmacists:', err);
-    res.status(500).json({ message: 'Error fetching pharmacists' });
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -21,8 +22,9 @@ export const getPharmacistById = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
+    console.log(err);
     console.error('Error fetching pharmacist:', err);
-    res.status(500).json({ message: 'Error fetching pharmacist' });
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -35,7 +37,8 @@ export const updatePharmacist = async (req, res) => {
       [fullname, phone, id]);
     res.json({ message: 'Pharmacist updated successfully' });
   } catch (err) {
+    console.log(err);
     console.error('Error updating pharmacist:', err);
-    res.status(500).json({ message: 'Error updating pharmacist' });
+    res.status(500).json({ message: err.message });
   }
 };

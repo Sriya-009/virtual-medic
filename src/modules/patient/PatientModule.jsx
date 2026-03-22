@@ -162,7 +162,8 @@ const STORAGE_KEYS = {
   profile: "medico.patient.profile",
   payments: "medico.patient.payments",
   invoices: "medico.patient.invoices",
-  prescriptions: "medico.shared.prescriptions"
+  prescriptions: "medico.shared.prescriptions",
+  patientFiles: "medico.shared.patientFiles"
 };
 
 function getStored(key, fallbackValue) {
@@ -191,6 +192,16 @@ function normalizeAppointment(entry) {
   };
 }
 
+function formatFileSize(size) {
+  if (size < 1024) {
+    return `${size} B`;
+  }
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+}
+
 function PatientModule({ currentUsername = "patient" }) {
   const [activeMenu, setActiveMenu] = useState("home");
   const [activeSubNavKey, setActiveSubNavKey] = useState("");
@@ -216,11 +227,15 @@ function PatientModule({ currentUsername = "patient" }) {
   const [rescheduleForm, setRescheduleForm] = useState({ date: "", time: "" });
 
   const [consultSymptoms, setConsultSymptoms] = useState("");
+  const [selectedConsultationId, setSelectedConsultationId] = useState("");
+  const [activeConsultation, setActiveConsultation] = useState(null);
+  const [consultationDraftMessage, setConsultationDraftMessage] = useState("");
   const [chatLog, setChatLog] = useState([]);
 
   const [prescriptions, setPrescriptions] = useState(() =>
     getStored(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS)
   );
+  const [uploadedPatientFiles] = useState(() => getStored(STORAGE_KEYS.patientFiles, []));
 
   const [invoices, setInvoices] = useState(() => getStored(STORAGE_KEYS.invoices, INITIAL_INVOICES));
   const [payments, setPayments] = useState(() => getStored(STORAGE_KEYS.payments, []));
@@ -252,6 +267,7 @@ function PatientModule({ currentUsername = "patient" }) {
     newPassword: "",
     confirmPassword: ""
   });
+  const [previewFile, setPreviewFile] = useState(null);
 
   const showNotice = (message) => {
     setUiNotice(message);
@@ -313,6 +329,11 @@ function PatientModule({ currentUsername = "patient" }) {
     [patientAppointments]
   );
 
+  const reportableConsultations = useMemo(
+    () => (upcomingAppointments.length > 0 ? upcomingAppointments : patientAppointments),
+    [upcomingAppointments, patientAppointments]
+  );
+
   const notifications = useMemo(() => {
     const appointmentAlerts = patientAppointments.map(
       (entry) => `Appointment ${entry.status.toLowerCase()} with ${entry.doctorName} on ${entry.date} ${entry.time}`
@@ -332,6 +353,11 @@ function PatientModule({ currentUsername = "patient" }) {
   const patientPrescriptions = useMemo(
     () => prescriptions.filter((entry) => entry.patientName === currentPatientName),
     [prescriptions, currentPatientName]
+  );
+
+  const myUploadedFiles = useMemo(
+    () => uploadedPatientFiles.filter((entry) => entry.patientName === currentPatientName),
+    [uploadedPatientFiles, currentPatientName]
   );
 
   const activePrescriptions = useMemo(
@@ -381,11 +407,13 @@ function PatientModule({ currentUsername = "patient" }) {
 
   const bookAppointment = () => {
     if (!bookingForm.date || !bookingForm.time) {
+      showNotice("Please select date and time before booking.");
       return;
     }
 
     const doctor = DOCTORS.find((entry) => entry.id === bookingForm.doctorId);
     if (!doctor) {
+      showNotice("Selected doctor was not found.");
       return;
     }
 
@@ -403,10 +431,15 @@ function PatientModule({ currentUsername = "patient" }) {
       ...prev
     ]);
     setBookingForm((prev) => ({ ...prev, date: "", time: "" }));
+    showNotice(`Appointment requested with ${doctor.name}.`);
   };
 
   const cancelAppointment = (id) => {
+    const appointment = appointments.find((entry) => entry.id === id);
     setAppointments((prev) => prev.map((entry) => (entry.id === id ? { ...entry, status: "Cancelled" } : entry)));
+    if (appointment) {
+      showNotice(`Appointment with ${appointment.doctorName} cancelled.`);
+    }
   };
 
   const startReschedule = (appointment) => {
@@ -416,9 +449,11 @@ function PatientModule({ currentUsername = "patient" }) {
 
   const submitReschedule = () => {
     if (!rescheduleForm.date || !rescheduleForm.time) {
+      showNotice("Please select a new date and time.");
       return;
     }
 
+    const selected = appointments.find((entry) => entry.id === rescheduleId);
     setAppointments((prev) =>
       prev.map((entry) =>
         entry.id === rescheduleId
@@ -427,27 +462,104 @@ function PatientModule({ currentUsername = "patient" }) {
       )
     );
     setRescheduleId("");
+    if (selected) {
+      showNotice(`Reschedule request sent for ${selected.doctorName}.`);
+    }
   };
 
   const joinConsultation = (appointment, mode) => {
-    if (!consultSymptoms.trim()) {
+    setActiveConsultation({
+      appointmentId: appointment.id,
+      doctorName: appointment.doctorName,
+      date: appointment.date,
+      time: appointment.time,
+      mode
+    });
+    setConsultationDraftMessage("");
+
+    setChatLog((prev) => [
+      {
+        id: `MSG-${Date.now()}`,
+        message: `Started ${mode.toLowerCase()} consultation with ${appointment.doctorName} on ${appointment.date} at ${appointment.time}.`
+      },
+      ...prev
+    ]);
+    showNotice(`${mode} consultation opened for ${appointment.doctorName}.`);
+  };
+
+  const sendConsultationMessage = () => {
+    if (!activeConsultation) {
+      return;
+    }
+
+    if (!consultationDraftMessage.trim()) {
+      showNotice("Please enter a message before sending.");
       return;
     }
 
     setChatLog((prev) => [
       {
         id: `MSG-${Date.now()}`,
-        message: `Sent symptoms to ${appointment.doctorName} via ${mode}: ${consultSymptoms.trim()}`
+        message: `Message to ${activeConsultation.doctorName} (${activeConsultation.mode} room): ${consultationDraftMessage.trim()}`
+      },
+      ...prev
+    ]);
+    setConsultationDraftMessage("");
+    showNotice("Message sent during consultation.");
+  };
+
+  const endConsultation = () => {
+    if (activeConsultation) {
+      setChatLog((prev) => [
+        {
+          id: `MSG-${Date.now()}`,
+          message: `Ended ${activeConsultation.mode.toLowerCase()} consultation with ${activeConsultation.doctorName}.`
+        },
+        ...prev
+      ]);
+      showNotice(`${activeConsultation.mode} consultation ended.`);
+    }
+
+    setActiveConsultation(null);
+    setConsultationDraftMessage("");
+  };
+
+  const sendSymptomsToDoctor = () => {
+    if (!selectedConsultationId) {
+      showNotice("Please select a doctor to report symptoms.");
+      return;
+    }
+
+    if (!consultSymptoms.trim()) {
+      showNotice("Please write your symptoms before sending.");
+      return;
+    }
+
+    const consultation = reportableConsultations.find((entry) => entry.id === selectedConsultationId);
+    if (!consultation) {
+      showNotice("Selected doctor consultation was not found.");
+      return;
+    }
+
+    setChatLog((prev) => [
+      {
+        id: `MSG-${Date.now()}`,
+        message: `Symptoms sent to ${consultation.doctorName}: ${consultSymptoms.trim()}`
       },
       ...prev
     ]);
     setConsultSymptoms("");
+    showNotice(`Symptoms sent to ${consultation.doctorName}.`);
   };
 
   const sendToPharmacist = (id) => {
+    const prescription = prescriptions.find((entry) => entry.id === id);
     setPrescriptions((prev) =>
       prev.map((entry) => (entry.id === id ? { ...entry, sentTo: "Pharmacist", refill: "Sent to pharmacist" } : entry))
     );
+    if (prescription) {
+      showNotice(`${prescription.medicine} forwarded to pharmacist.`);
+    }
   };
 
   const orderMedicine = (prescription) => {
@@ -460,6 +572,7 @@ function PatientModule({ currentUsername = "patient" }) {
       },
       ...prev
     ]);
+    showNotice(`Medicine order created for ${prescription.medicine}.`);
   };
 
   const payInvoice = (invoice, details) => {
@@ -616,6 +729,24 @@ function PatientModule({ currentUsername = "patient" }) {
     showNotice(`Downloaded ${entry.id} report.`);
   };
 
+  const downloadUploadedFile = (entry) => {
+    if (!entry.dataUrl) {
+      showNotice("File data is not available for download.");
+      return;
+    }
+
+    const anchor = document.createElement("a");
+    anchor.href = entry.dataUrl;
+    anchor.download = entry.fileName;
+    anchor.click();
+    showNotice(`Downloaded ${entry.fileName}.`);
+  };
+
+  const isPreviewableFile = (entry) => {
+    const type = (entry.fileType || "").toLowerCase();
+    return type.startsWith("image/") || type.includes("pdf") || type.startsWith("text/");
+  };
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.appointments, JSON.stringify(appointments));
   }, [appointments]);
@@ -639,6 +770,20 @@ function PatientModule({ currentUsername = "patient" }) {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.prescriptions, JSON.stringify(prescriptions));
   }, [prescriptions]);
+
+  useEffect(() => {
+    if (reportableConsultations.length === 0) {
+      if (selectedConsultationId) {
+        setSelectedConsultationId("");
+      }
+      return;
+    }
+
+    const exists = reportableConsultations.some((entry) => entry.id === selectedConsultationId);
+    if (!exists) {
+      setSelectedConsultationId(reportableConsultations[0].id);
+    }
+  }, [reportableConsultations, selectedConsultationId]);
 
   const renderSection = () => {
     if (activeMenu === "home") {
@@ -819,30 +964,64 @@ function PatientModule({ currentUsername = "patient" }) {
           <p>Join online consultations and communicate with your doctor.</p>
 
           {isSubSectionVisible(["chat-symptoms"]) ? (
-          <label className="doctor-notes-label">
-            Symptoms / Message to Doctor
-            <textarea
-              value={consultSymptoms}
-              onChange={(event) => setConsultSymptoms(event.target.value)}
-              placeholder="Describe your current symptoms"
-            />
-          </label>
+          <div className="consultation-report-box">
+            <div className="consultation-report-row">
+              <label className="doctor-notes-label consultation-target-label">
+                Report To Doctor
+                <select
+                  value={selectedConsultationId}
+                  onChange={(event) => setSelectedConsultationId(event.target.value)}
+                  disabled={reportableConsultations.length === 0}
+                >
+                  {reportableConsultations.length > 0 ? (
+                    reportableConsultations.map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.doctorName} ({entry.date} {entry.time})
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No consultation available</option>
+                  )}
+                </select>
+              </label>
+            </div>
+            <label className="doctor-notes-label">
+              Symptoms / Message to Doctor
+              <textarea
+                value={consultSymptoms}
+                onChange={(event) => setConsultSymptoms(event.target.value)}
+                placeholder="Describe your current symptoms"
+              />
+            </label>
+            <div className="consultation-send-row">
+              <button className="erp-primary-btn" type="button" onClick={sendSymptomsToDoctor}>
+                Send Symptoms
+              </button>
+            </div>
+          </div>
           ) : null}
 
           {isSubSectionVisible(["join-consultation"]) ? (
           <div className="patient-cards-grid">
-            {upcomingAppointments.map((entry) => (
-              <article key={entry.id} className="patient-card">
-                <h4>{entry.doctorName}</h4>
-                <p>
-                  {entry.date} at {entry.time}
-                </p>
-                <div className="table-actions">
-                  <button type="button" onClick={() => joinConsultation(entry, "Video")}>Join Video</button>
-                  <button type="button" onClick={() => joinConsultation(entry, "Chat")}>Join Chat</button>
-                </div>
+            {upcomingAppointments.length > 0 ? (
+              upcomingAppointments.map((entry) => (
+                <article key={entry.id} className="patient-card">
+                  <h4>{entry.doctorName}</h4>
+                  <p>
+                    {entry.date} at {entry.time}
+                  </p>
+                  <div className="table-actions">
+                    <button type="button" onClick={() => joinConsultation(entry, "Video")}>Join Video</button>
+                    <button type="button" onClick={() => joinConsultation(entry, "Chat")}>Join Chat</button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <article className="patient-card">
+                <h4>No Upcoming Consultation</h4>
+                <p>Book or confirm an appointment to start a consultation session.</p>
               </article>
-            ))}
+            )}
           </div>
           ) : null}
 
@@ -893,6 +1072,55 @@ function PatientModule({ currentUsername = "patient" }) {
                       ) : null}
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="quick-section">
+            <h4>Files Shared by Doctor</h4>
+            <div className="table-wrap">
+              <table className="erp-table">
+                <thead>
+                  <tr>
+                    <th>Uploaded At</th>
+                    <th>File</th>
+                    <th>Type</th>
+                    <th>Size</th>
+                    <th>Uploaded By</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myUploadedFiles.length > 0 ? (
+                    myUploadedFiles.map((entry) => (
+                      <tr key={entry.id}>
+                        <td>{entry.uploadedAt}</td>
+                        <td>{entry.fileName}</td>
+                        <td>{entry.fileType}</td>
+                        <td>{formatFileSize(entry.fileSize || 0)}</td>
+                        <td>{entry.uploadedBy || "Doctor"}</td>
+                        <td>
+                          <div className="table-actions">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewFile(entry)}
+                              disabled={!isPreviewableFile(entry)}
+                            >
+                              Preview
+                            </button>
+                            <button type="button" onClick={() => downloadUploadedFile(entry)}>
+                              Download
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6">No files uploaded for your profile yet.</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1397,6 +1625,65 @@ function PatientModule({ currentUsername = "patient" }) {
               <button type="button" onClick={() => setRescheduleId("")}>Cancel</button>
               <button className="erp-primary-btn" type="button" onClick={submitReschedule}>
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {activeConsultation ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card consultation-modal">
+            <div className="consultation-modal-head">
+              <h3>{activeConsultation.mode} Consultation Room</h3>
+              <span className="consultation-patient-pill">Doctor: {activeConsultation.doctorName}</span>
+            </div>
+            <p className="consultation-modal-subtitle">
+              Scheduled for {activeConsultation.date} at {activeConsultation.time}
+            </p>
+
+            <label className="doctor-notes-label">
+              Message During Consultation
+              <textarea
+                className="consultation-textarea"
+                value={consultationDraftMessage}
+                onChange={(event) => setConsultationDraftMessage(event.target.value)}
+                placeholder="Type your message to doctor"
+              />
+            </label>
+
+            <div className="modal-actions">
+              <button type="button" className="danger-solid" onClick={endConsultation}>
+                End Consultation
+              </button>
+              <button className="erp-primary-btn" type="button" onClick={sendConsultationMessage}>
+                Send Message
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {previewFile ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <h3>File Preview</h3>
+            <p>
+              <strong>{previewFile.fileName}</strong>
+            </p>
+            <div className="file-preview-body">
+              {(previewFile.fileType || "").toLowerCase().startsWith("image/") ? (
+                <img className="file-preview-image" src={previewFile.dataUrl} alt={previewFile.fileName} />
+              ) : isPreviewableFile(previewFile) ? (
+                <iframe className="file-preview-frame" src={previewFile.dataUrl} title={previewFile.fileName} />
+              ) : (
+                <p>Preview not available for this file type.</p>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setPreviewFile(null)}>Close</button>
+              <button className="erp-primary-btn" type="button" onClick={() => downloadUploadedFile(previewFile)}>
+                Download
               </button>
             </div>
           </div>

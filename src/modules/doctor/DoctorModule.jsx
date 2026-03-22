@@ -164,6 +164,7 @@ const STORAGE_KEYS = {
   appointments: "medico.shared.appointments",
   records: "medico.doctor.records",
   prescriptions: "medico.shared.prescriptions",
+  patientFiles: "medico.shared.patientFiles",
   availability: "medico.doctor.availability",
   profile: "medico.doctor.profile",
   consultationLogs: "medico.doctor.consultationLogs",
@@ -219,6 +220,25 @@ function normalizeAppointment(entry) {
   };
 }
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Failed to read file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatFileSize(size) {
+  if (size < 1024) {
+    return `${size} B`;
+  }
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+}
+
 function DoctorModule({ currentUsername = "doctor" }) {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [activeSubNavKey, setActiveSubNavKey] = useState("dashboard-total-patients");
@@ -240,6 +260,12 @@ function DoctorModule({ currentUsername = "doctor" }) {
   const [patientSearch, setPatientSearch] = useState("");
   const [recordForm, setRecordForm] = useState({ patientId: "P-01", diagnosis: "", symptoms: "", notes: "" });
   const [medicalRecords, setMedicalRecords] = useState(() => readStorage(STORAGE_KEYS.records, []));
+  const [fileUploadPatientId, setFileUploadPatientId] = useState("P-01");
+  const [uploadedFileSearch, setUploadedFileSearch] = useState("");
+  const [pendingPatientFiles, setPendingPatientFiles] = useState([]);
+  const [fileInputKey, setFileInputKey] = useState(0);
+  const [uploadedPatientFiles, setUploadedPatientFiles] = useState(() => readStorage(STORAGE_KEYS.patientFiles, []));
+  const [previewFile, setPreviewFile] = useState(null);
   const [consultationLogs, setConsultationLogs] = useState(() =>
     readStorage(STORAGE_KEYS.consultationLogs, CONSULTATION_LOGS)
   );
@@ -294,6 +320,11 @@ function DoctorModule({ currentUsername = "doctor" }) {
     return group ? group.label : "Doctor Dashboard";
   }, [activeTab]);
 
+  const navigateToTab = (tab, nextSubNavKey = "") => {
+    setActiveTab(tab);
+    setActiveSubNavKey(nextSubNavKey);
+  };
+
   const handleMainNavClick = (group) => {
     setOpenGroups((prev) => ({
       ...prev,
@@ -324,6 +355,12 @@ function DoctorModule({ currentUsername = "doctor" }) {
     if (!activeSubNavKey) {
       return true;
     }
+
+    const selected = TABS.flatMap((group) => group.items).find((item) => item.key === activeSubNavKey);
+    if (!selected || selected.targetTab !== activeTab) {
+      return true;
+    }
+
     return keys.includes(activeSubNavKey);
   };
 
@@ -392,6 +429,17 @@ function DoctorModule({ currentUsername = "doctor" }) {
     });
   }, [patientSearch]);
 
+  const filteredUploadedPatientFiles = useMemo(() => {
+    const query = uploadedFileSearch.trim().toLowerCase();
+    if (!query) {
+      return uploadedPatientFiles;
+    }
+
+    return uploadedPatientFiles.filter((entry) =>
+      (entry.patientName || "").toLowerCase().includes(query)
+    );
+  }, [uploadedPatientFiles, uploadedFileSearch]);
+
   const nextUpcoming = upcomingAppointments[0];
   const doctorHomeCards = useMemo(
     () => [
@@ -424,9 +472,13 @@ function DoctorModule({ currentUsername = "doctor" }) {
   );
 
   const updateAppointmentStatus = (id, nextStatus) => {
+    const selected = doctorAppointments.find((row) => row.id === id);
     setAppointmentRows((prev) =>
       prev.map((row) => (row.id === id ? { ...row, status: nextStatus } : row))
     );
+    if (selected) {
+      showNotice(`Appointment for ${selected.patientName} marked as ${nextStatus}.`);
+    }
   };
 
   const handleRecordChange = (event) => {
@@ -570,10 +622,12 @@ function DoctorModule({ currentUsername = "doctor" }) {
   const saveMedicalRecord = () => {
     const selectedPatient = PATIENTS.find((patient) => patient.id === recordForm.patientId);
     if (!selectedPatient) {
+      showNotice("Please select a valid patient.");
       return;
     }
 
     if (!recordForm.diagnosis.trim() && !recordForm.symptoms.trim() && !recordForm.notes.trim()) {
+      showNotice("Add diagnosis, symptoms, or notes before saving.");
       return;
     }
 
@@ -590,15 +644,78 @@ function DoctorModule({ currentUsername = "doctor" }) {
     ]);
 
     setRecordForm((prev) => ({ ...prev, diagnosis: "", symptoms: "", notes: "" }));
+    showNotice(`Medical record updated for ${selectedPatient.name}.`);
+  };
+
+  const uploadPatientFiles = async () => {
+    const selectedPatient = PATIENTS.find((patient) => patient.id === fileUploadPatientId);
+    if (!selectedPatient) {
+      showNotice("Please select a valid patient for file upload.");
+      return;
+    }
+
+    if (pendingPatientFiles.length === 0) {
+      showNotice("Please choose at least one file.");
+      return;
+    }
+
+    try {
+      const uploads = await Promise.all(
+        pendingPatientFiles.map(async (file) => {
+          const dataUrl = await fileToDataUrl(file);
+          return {
+            id: `PF-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            patientName: selectedPatient.name,
+            fileName: file.name,
+            fileType: file.type || "application/octet-stream",
+            fileSize: file.size,
+            dataUrl,
+            uploadedAt: new Date().toLocaleString(),
+            uploadedBy: currentUsername || CURRENT_DOCTOR_NAME
+          };
+        })
+      );
+
+      const nextFiles = [...uploads, ...uploadedPatientFiles];
+      localStorage.setItem(STORAGE_KEYS.patientFiles, JSON.stringify(nextFiles));
+      setUploadedPatientFiles(nextFiles);
+      setPendingPatientFiles([]);
+      setFileInputKey((prev) => prev + 1);
+      showNotice(`${uploads.length} file(s) uploaded for ${selectedPatient.name}.`);
+    } catch {
+      showNotice("Unable to upload files. Please try smaller files.");
+    }
+  };
+
+  const downloadUploadedFile = (entry) => {
+    const anchor = document.createElement("a");
+    anchor.href = entry.dataUrl;
+    anchor.download = entry.fileName;
+    anchor.click();
+  };
+
+  const deleteUploadedFile = (id) => {
+    const selected = uploadedPatientFiles.find((entry) => entry.id === id);
+    setUploadedPatientFiles((prev) => prev.filter((entry) => entry.id !== id));
+    if (selected) {
+      showNotice(`${selected.fileName} deleted.`);
+    }
+  };
+
+  const isPreviewableFile = (entry) => {
+    const type = (entry.fileType || "").toLowerCase();
+    return type.startsWith("image/") || type.includes("pdf") || type.startsWith("text/");
   };
 
   const createPrescription = () => {
     const selectedPatient = PATIENTS.find((patient) => patient.id === prescriptionForm.patientId);
     if (!selectedPatient) {
+      showNotice("Please select a valid patient.");
       return;
     }
 
     if (!prescriptionForm.medicine.trim() || !prescriptionForm.dosage.trim() || !prescriptionForm.duration.trim()) {
+      showNotice("Please fill medicine, dosage, and duration.");
       return;
     }
 
@@ -637,6 +754,11 @@ function DoctorModule({ currentUsername = "doctor" }) {
       dosage: "",
       duration: ""
     }));
+    showNotice(
+      editingPrescriptionId
+        ? `Prescription updated for ${selectedPatient.name}.`
+        : `Prescription created for ${selectedPatient.name}.`
+    );
     setEditingPrescriptionId("");
   };
 
@@ -651,7 +773,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
       sendToPatient: entry.sentTo.includes("Patient"),
       sendToPharmacist: entry.sentTo.includes("Pharmacist")
     });
-    setActiveTab("prescriptions");
+    navigateToTab("prescriptions", "prescriptions-edit");
   };
 
   useEffect(() => {
@@ -681,6 +803,10 @@ function DoctorModule({ currentUsername = "doctor" }) {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.scheduleBlocks, JSON.stringify(scheduleBlocks));
   }, [scheduleBlocks]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.patientFiles, JSON.stringify(uploadedPatientFiles));
+  }, [uploadedPatientFiles]);
 
   return (
     <section className="admin-erp-shell">
@@ -763,7 +889,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
                       key={`${card.key}-${card.label}`}
                       type="button"
                       className="patient-home-card"
-                      onClick={() => setActiveTab(card.key)}
+                      onClick={() => navigateToTab(card.key)}
                     >
                       <div className="patient-card-content">
                         <p className="patient-card-label">{card.label}</p>
@@ -1186,6 +1312,98 @@ function DoctorModule({ currentUsername = "doctor" }) {
             </div>
             ) : null}
 
+            <div className="quick-section">
+              <h4>Upload Patient Files</h4>
+              <div className="erp-form-grid">
+                <label>
+                  Select Patient
+                  <select value={fileUploadPatientId} onChange={(event) => setFileUploadPatientId(event.target.value)}>
+                    {PATIENTS.map((patient) => (
+                      <option key={patient.id} value={patient.id}>
+                        {patient.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label style={{ gridColumn: "1 / -1" }}>
+                  Choose File(s)
+                  <input
+                    key={fileInputKey}
+                    type="file"
+                    multiple
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.txt"
+                    onChange={(event) => setPendingPatientFiles(Array.from(event.target.files || []))}
+                  />
+                </label>
+              </div>
+              <button className="erp-primary-btn" type="button" onClick={uploadPatientFiles}>
+                Upload Files
+              </button>
+
+              <div className="users-heading-row uploaded-files-heading-row">
+                <h4>Uploaded Files</h4>
+                <input
+                  type="text"
+                  value={uploadedFileSearch}
+                  onChange={(event) => setUploadedFileSearch(event.target.value)}
+                  placeholder="Filter uploaded files by patient name"
+                />
+              </div>
+
+              <div className="table-wrap">
+                <table className="erp-table">
+                  <thead>
+                    <tr>
+                      <th>Uploaded At</th>
+                      <th>Patient</th>
+                      <th>File</th>
+                      <th>Type</th>
+                      <th>Size</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUploadedPatientFiles.length > 0 ? (
+                      filteredUploadedPatientFiles.map((entry) => (
+                        <tr key={entry.id}>
+                          <td>{entry.uploadedAt}</td>
+                          <td>{entry.patientName}</td>
+                          <td>{entry.fileName}</td>
+                          <td>{entry.fileType}</td>
+                          <td>{formatFileSize(entry.fileSize || 0)}</td>
+                          <td>
+                            <div className="table-actions">
+                              <button
+                                type="button"
+                                onClick={() => setPreviewFile(entry)}
+                                disabled={!isPreviewableFile(entry)}
+                              >
+                                Preview
+                              </button>
+                              <button type="button" onClick={() => downloadUploadedFile(entry)}>
+                                Download
+                              </button>
+                              <button type="button" className="danger" onClick={() => deleteUploadedFile(entry.id)}>
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="6">
+                          {uploadedPatientFiles.length > 0
+                            ? "No files match the patient name filter."
+                            : "No uploaded files yet."}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             {isSubSectionVisible(["records-diagnosis", "records-notes"]) ? (
             <div className="quick-section">
               <h4>Saved Record Updates</h4>
@@ -1592,6 +1810,32 @@ function DoctorModule({ currentUsername = "doctor" }) {
               <button type="button" onClick={closeConsultationModal}>Cancel</button>
               <button className="erp-primary-btn" type="button" onClick={submitConsultationStart}>
                 Start Session
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {previewFile ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <h3>File Preview</h3>
+            <p>
+              <strong>{previewFile.fileName}</strong>
+            </p>
+            <div className="file-preview-body">
+              {(previewFile.fileType || "").toLowerCase().startsWith("image/") ? (
+                <img className="file-preview-image" src={previewFile.dataUrl} alt={previewFile.fileName} />
+              ) : isPreviewableFile(previewFile) ? (
+                <iframe className="file-preview-frame" src={previewFile.dataUrl} title={previewFile.fileName} />
+              ) : (
+                <p>Preview not available for this file type.</p>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setPreviewFile(null)}>Close</button>
+              <button className="erp-primary-btn" type="button" onClick={() => downloadUploadedFile(previewFile)}>
+                Download
               </button>
             </div>
           </div>

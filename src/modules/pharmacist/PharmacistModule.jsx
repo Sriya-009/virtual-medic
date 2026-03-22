@@ -165,6 +165,14 @@ function normalizePrescription(entry) {
   };
 }
 
+function formatCurrency(amount) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2
+  }).format(Number(amount) || 0);
+}
+
 function PharmacistModule({ currentUsername = "pharmacist" }) {
   const [activeMenu, setActiveMenu] = useState("view-prescriptions");
   const [openGroup, setOpenGroup] = useState("prescriptions");
@@ -954,7 +962,7 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
                               {med.status}
                             </span>
                           </td>
-                          <td style={{ padding: "0.75rem" }}>${med.price.toFixed(2)}</td>
+                          <td style={{ padding: "0.75rem" }}>{formatCurrency(med.price)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1245,7 +1253,7 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
                           <td style={{ padding: "0.75rem" }}>{tx.medicine}</td>
                           <td style={{ padding: "0.75rem" }}>{tx.quantity}</td>
                           <td style={{ padding: "0.75rem" }}>
-                            <strong>${tx.amount.toFixed(2)}</strong>
+                            <strong>{formatCurrency(tx.amount)}</strong>
                           </td>
                           <td style={{ padding: "0.75rem" }}>{tx.date}</td>
                           <td style={{ padding: "0.75rem" }}>
@@ -1267,7 +1275,7 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
                 <p style={{ color: "#666", marginBottom: "1rem" }}>Overview of medicines sold and average order value.</p>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "1rem" }}>
                   <div className="stat-card"><div className="stat-label">Items Sold</div><div className="stat-value">{salesReport.soldItems}</div></div>
-                  <div className="stat-card"><div className="stat-label">Average Order Value</div><div className="stat-value">${salesReport.avgOrderValue.toFixed(2)}</div></div>
+                  <div className="stat-card"><div className="stat-label">Average Order Value</div><div className="stat-value">{formatCurrency(salesReport.avgOrderValue)}</div></div>
                   <div className="stat-card"><div className="stat-label">Low Stock Count</div><div className="stat-value">{lowStockItems.length}</div></div>
                 </div>
               </div>
@@ -1279,7 +1287,7 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
                 <p style={{ color: "#666", marginBottom: "1rem" }}>Total revenue from dispensed orders.</p>
                 <div className="stat-card" style={{ maxWidth: "420px" }}>
                   <div className="stat-label">Total Revenue</div>
-                  <div className="stat-value">${salesReport.totalSales.toFixed(2)}</div>
+                  <div className="stat-value">{formatCurrency(salesReport.totalSales)}</div>
                   <div className="stat-subtitle">Based on transaction history</div>
                 </div>
               </div>

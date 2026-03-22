@@ -202,6 +202,27 @@ function formatFileSize(size) {
   return `${(size / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+function formatCurrency(amount) {
+  const normalizedAmount =
+    typeof amount === "number"
+      ? amount
+      : Number(String(amount ?? "").replace(/[^0-9.-]/g, ""));
+
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2
+  }).format(Number.isFinite(normalizedAmount) ? normalizedAmount : 0);
+}
+
+function normalizeMoneyEntryAmount(entry) {
+  const parsed = Number(String(entry.amount ?? "").replace(/[^0-9.-]/g, ""));
+  return {
+    ...entry,
+    amount: Number.isFinite(parsed) ? parsed : 0
+  };
+}
+
 function PatientModule({ currentUsername = "patient" }) {
   const [activeMenu, setActiveMenu] = useState("home");
   const [activeSubNavKey, setActiveSubNavKey] = useState("");
@@ -237,8 +258,12 @@ function PatientModule({ currentUsername = "patient" }) {
   );
   const [uploadedPatientFiles] = useState(() => getStored(STORAGE_KEYS.patientFiles, []));
 
-  const [invoices, setInvoices] = useState(() => getStored(STORAGE_KEYS.invoices, INITIAL_INVOICES));
-  const [payments, setPayments] = useState(() => getStored(STORAGE_KEYS.payments, []));
+  const [invoices, setInvoices] = useState(() =>
+    getStored(STORAGE_KEYS.invoices, INITIAL_INVOICES).map(normalizeMoneyEntryAmount)
+  );
+  const [payments, setPayments] = useState(() =>
+    getStored(STORAGE_KEYS.payments, []).map(normalizeMoneyEntryAmount)
+  );
 
   const [profile, setProfile] = useState(() =>
     getStored(STORAGE_KEYS.profile, {
@@ -342,7 +367,7 @@ function PatientModule({ currentUsername = "patient" }) {
       .filter((entry) => entry.patientName === currentPatientName)
       .map((entry) => `Prescription update: ${entry.medicine} (${entry.refill} refill)`);
     const paymentAlerts = payments.map(
-      (entry) => `Payment success: $${entry.amount} for ${entry.item}`
+      (entry) => `Payment success: ${formatCurrency(entry.amount)} for ${entry.item}`
     );
 
     return [...appointmentAlerts, ...prescriptionAlerts, ...paymentAlerts].slice(0, 10);
@@ -1199,7 +1224,7 @@ function PatientModule({ currentUsername = "patient" }) {
                       <tr key={entry.id}>
                         <td>{entry.paidAt}</td>
                         <td>{entry.item}</td>
-                        <td>${entry.amount}</td>
+                        <td>{formatCurrency(entry.amount)}</td>
                         <td>{entry.method}{entry.cardLast4 ? ` •••• ${entry.cardLast4}` : ""}</td>
                         <td>{entry.reference}</td>
                       </tr>
@@ -1243,7 +1268,7 @@ function PatientModule({ currentUsername = "patient" }) {
               </article>
               <article className="erp-stat-card">
                 <h4>Outstanding</h4>
-                <p>${pendingInvoices.reduce((sum, entry) => sum + entry.amount, 0)}</p>
+                <p>{formatCurrency(pendingInvoices.reduce((sum, entry) => sum + entry.amount, 0))}</p>
                 <span>Total due amount</span>
               </article>
             </div>
@@ -1266,7 +1291,7 @@ function PatientModule({ currentUsername = "patient" }) {
                     pendingInvoices.map((entry) => (
                       <tr key={entry.id}>
                         <td>{entry.item}</td>
-                        <td>${entry.amount}</td>
+                        <td>{formatCurrency(entry.amount)}</td>
                         <td>{entry.status}</td>
                         <td>
                           <button className="erp-primary-btn" type="button" onClick={() => startInvoicePayment(entry)}>
@@ -1303,7 +1328,7 @@ function PatientModule({ currentUsername = "patient" }) {
                       <tr key={entry.id}>
                         <td>{entry.id}</td>
                         <td>{entry.item}</td>
-                        <td>${entry.amount}</td>
+                        <td>{formatCurrency(entry.amount)}</td>
                         <td>{entry.status}</td>
                       </tr>
                     ))
@@ -1695,7 +1720,7 @@ function PatientModule({ currentUsername = "patient" }) {
           <div className="modal-card">
             <h3>Complete Payment</h3>
             <p>
-              Invoice: <strong>{payingInvoice.item}</strong> | Amount: <strong>${payingInvoice.amount}</strong>
+              Invoice: <strong>{payingInvoice.item}</strong> | Amount: <strong>{formatCurrency(payingInvoice.amount)}</strong>
             </p>
 
             <div className="modal-form-grid">

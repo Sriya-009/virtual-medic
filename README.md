@@ -54,7 +54,7 @@ cd backend
 npm install
 npm start
 ```
-Backend runs on: `http://localhost:5000`
+Backend runs on: `http://18.205.246.223:5000`
 
 ### 2. Start Frontend Application
 ```bash
@@ -104,7 +104,7 @@ Ensure MySQL is running and the `virtual_medic` database exists.
 Frontend communicates with backend through:
 - **File**: `frontend/src/lib/api.js`
 - **Library**: Axios
-- **Base URL**: `http://localhost:5000/api`
+- **Base URL**: `http://18.205.246.223:5000/api`
 
 Example API call in frontend:
 ```javascript

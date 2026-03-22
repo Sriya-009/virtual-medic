@@ -583,6 +583,59 @@ hr {
   gap: 0.6rem;
 }
 
+.consultation-modal {
+  width: min(760px, 100%);
+  border-radius: 18px;
+  border: 1px solid #dbe3ef;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: 1.2rem;
+}
+
+.consultation-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+
+.consultation-modal-head h3 {
+  margin: 0;
+  font-size: 1.45rem;
+  color: #0f172a;
+}
+
+.consultation-patient-pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #bfd2ea;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #1d4b7a;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.consultation-modal-subtitle {
+  margin: 0.15rem 0 1rem;
+  color: #4b5563;
+  font-size: 0.95rem;
+}
+
+.consultation-textarea {
+  min-height: 170px;
+  border: 1px solid #ccd7e8 !important;
+  background: #ffffff !important;
+  border-radius: 12px !important;
+}
+
+.consultation-textarea::placeholder {
+  color: #6b7280;
+  font-weight: 600;
+}
+
 .danger-solid {
   border: 1px solid #be123c !important;
   color: #fff !important;
@@ -838,6 +891,12 @@ hr {
   box-shadow: 0 0 0 3px rgba(214, 31, 115, 0.15);
 }
 
+.consultation-modal .modal-actions button {
+  min-width: 110px;
+  padding: 0.58rem 0.95rem;
+  border-radius: 10px;
+}
+
 .doctor-send-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -959,6 +1018,92 @@ hr {
   color: #1e293b;
   font-weight: 600;
   border-left: 3px solid #6366f1;
+}
+
+.doctor-sidebar {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid #d7e4f6;
+  border-radius: 14px;
+  padding: 0.75rem 0;
+}
+
+.doctor-side-nav {
+  gap: 0.55rem;
+  padding: 0.55rem;
+}
+
+.doctor-nav-group {
+  border: 1px solid #c7d9ee;
+  border-radius: 14px;
+  background: #f6faff;
+  overflow: hidden;
+}
+
+.doctor-group-btn {
+  background: #f7fbff;
+  color: #0f2642;
+  border: 0;
+  border-bottom: 1px solid #d4e1f2;
+  padding: 0.82rem 0.95rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin: 0;
+  border-radius: 0;
+}
+
+.doctor-group-btn:hover {
+  background: #edf4fd;
+}
+
+.doctor-group-btn .menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid #b9cde5;
+  background: #ffffff;
+  color: #3c5f87;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.doctor-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #eef5fd;
+}
+
+.doctor-sub-item {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid #d7e3f3;
+  background: transparent;
+  padding: 0.92rem 1.05rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #1a3655;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.doctor-sub-item:last-child {
+  border-bottom: 0;
+}
+
+.doctor-sub-item:hover {
+  background: #e6f0fb;
+  color: #0f2c4a;
+}
+
+.doctor-sub-item.active {
+  background: #d8e8fb;
+  color: #0c2744;
+  box-shadow: inset 3px 0 0 #4f7db6;
 }
 
 .patient-notice {

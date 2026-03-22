@@ -263,7 +263,7 @@ function PatientModule({ currentUsername = "patient" }) {
   const menuTitle = useMemo(() => {
     if (activeSubNavKey) {
       const sub = MENU_GROUPS.flatMap((group) => group.items).find((entry) => entry.key === activeSubNavKey);
-      if (sub) {
+      if (sub && sub.targetMenu === activeMenu) {
         return sub.label;
       }
     }
@@ -279,6 +279,12 @@ function PatientModule({ currentUsername = "patient" }) {
     if (!activeSubNavKey) {
       return true;
     }
+
+    const selected = MENU_GROUPS.flatMap((group) => group.items).find((item) => item.key === activeSubNavKey);
+    if (!selected || selected.targetMenu !== activeMenu) {
+      return true;
+    }
+
     return keys.includes(activeSubNavKey);
   };
 
@@ -666,6 +672,7 @@ function PatientModule({ currentUsername = "patient" }) {
           <p>Search and find doctors by various filters.</p>
 
           <div className="erp-form-grid">
+            {isSubSectionVisible(["search-by-name"]) ? (
             <label>
               Doctor Name
               <input
@@ -675,6 +682,8 @@ function PatientModule({ currentUsername = "patient" }) {
                 placeholder="Search by doctor name"
               />
             </label>
+            ) : null}
+            {isSubSectionVisible(["search-by-specialization"]) ? (
             <label>
               Specialization
               <select name="specialization" value={doctorSearch.specialization} onChange={handleDoctorSearch}>
@@ -685,6 +694,8 @@ function PatientModule({ currentUsername = "patient" }) {
                 <option value="Orthopedics">Orthopedics</option>
               </select>
             </label>
+            ) : null}
+            {isSubSectionVisible(["search-by-availability"]) ? (
             <label>
               Availability
               <select name="availability" value={doctorSearch.availability} onChange={handleDoctorSearch}>
@@ -694,6 +705,7 @@ function PatientModule({ currentUsername = "patient" }) {
                 <option value="Evening">Evening</option>
               </select>
             </label>
+            ) : null}
           </div>
 
           <div className="patient-cards-grid">
@@ -717,6 +729,7 @@ function PatientModule({ currentUsername = "patient" }) {
           <h3>Appointment Booking</h3>
           <p>Book, manage and reschedule your appointments with doctors.</p>
 
+          {isSubSectionVisible(["book-appointment"]) ? (
           <div className="quick-section">
             <h4>Book New Appointment</h4>
             <div className="erp-form-grid">
@@ -743,7 +756,9 @@ function PatientModule({ currentUsername = "patient" }) {
               Book Appointment
             </button>
           </div>
+          ) : null}
 
+          {isSubSectionVisible(["view-appointments", "cancel-reschedule"]) ? (
           <div className="quick-section">
             <h4>My Appointments</h4>
             <div className="table-wrap">
@@ -769,12 +784,18 @@ function PatientModule({ currentUsername = "patient" }) {
                       <td>
                         {entry.status === "Confirmed" || entry.status === "Requested" ? (
                           <div className="table-actions">
-                            <button type="button" onClick={() => startReschedule(entry)}>
-                              Reschedule
-                            </button>
-                            <button type="button" className="danger" onClick={() => cancelAppointment(entry.id)}>
-                              Cancel
-                            </button>
+                            {isSubSectionVisible(["cancel-reschedule"]) ? (
+                              <>
+                                <button type="button" onClick={() => startReschedule(entry)}>
+                                  Reschedule
+                                </button>
+                                <button type="button" className="danger" onClick={() => cancelAppointment(entry.id)}>
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <span>View only</span>
+                            )}
                           </div>
                         ) : (
                           <span>-</span>
@@ -786,6 +807,7 @@ function PatientModule({ currentUsername = "patient" }) {
               </table>
             </div>
           </div>
+          ) : null}
         </section>
       );
     }
@@ -796,6 +818,7 @@ function PatientModule({ currentUsername = "patient" }) {
           <h3>Virtual Consultation</h3>
           <p>Join online consultations and communicate with your doctor.</p>
 
+          {isSubSectionVisible(["chat-symptoms"]) ? (
           <label className="doctor-notes-label">
             Symptoms / Message to Doctor
             <textarea
@@ -804,7 +827,9 @@ function PatientModule({ currentUsername = "patient" }) {
               placeholder="Describe your current symptoms"
             />
           </label>
+          ) : null}
 
+          {isSubSectionVisible(["join-consultation"]) ? (
           <div className="patient-cards-grid">
             {upcomingAppointments.map((entry) => (
               <article key={entry.id} className="patient-card">
@@ -819,6 +844,7 @@ function PatientModule({ currentUsername = "patient" }) {
               </article>
             ))}
           </div>
+          ) : null}
 
           <div className="quick-section">
             <h4>Communication Log</h4>
@@ -847,7 +873,7 @@ function PatientModule({ currentUsername = "patient" }) {
                     <th>Diagnosis</th>
                     <th>Prescriptions</th>
                     <th>Doctor</th>
-                    <th>Report</th>
+                    {isSubSectionVisible(["download-reports"]) ? <th>Report</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -858,11 +884,13 @@ function PatientModule({ currentUsername = "patient" }) {
                       <td>{entry.diagnosis}</td>
                       <td>{entry.prescriptions}</td>
                       <td>{entry.doctor}</td>
-                      <td>
-                        <button type="button" onClick={() => downloadMedicalReport(entry)}>
-                          Download
-                        </button>
-                      </td>
+                      {isSubSectionVisible(["download-reports"]) ? (
+                        <td>
+                          <button type="button" onClick={() => downloadMedicalReport(entry)}>
+                            Download
+                          </button>
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>
@@ -900,12 +928,12 @@ function PatientModule({ currentUsername = "patient" }) {
                     <td>{entry.refill}</td>
                     <td>
                       <div className="table-actions">
-                        {isSubSectionVisible(["send-to-pharmacist"]) ? (
+                        {isSubSectionVisible(["send-to-pharmacy"]) ? (
                           <button type="button" onClick={() => sendToPharmacist(entry.id)}>
                             Send to Pharmacist
                           </button>
                         ) : null}
-                        {isSubSectionVisible(["order-medicines"]) ? (
+                        {isSubSectionVisible(["view-prescriptions"]) ? (
                           <button type="button" onClick={() => orderMedicine(entry)}>Order Medicine</button>
                         ) : null}
                       </div>
@@ -1203,45 +1231,54 @@ function PatientModule({ currentUsername = "patient" }) {
       );
     }
 
+    if (activeMenu === "edit-profile") {
+      return (
+        <section className="erp-panel">
+          <h3>Edit Profile</h3>
+          <p>Update your name, contact info, and optional medical details.</p>
+
+          <div className="erp-form-grid">
+            <label>
+              Name
+              <input name="name" value={profileDraft.name} onChange={handleProfileField} />
+            </label>
+            <label>
+              Phone
+              <input name="phone" value={profileDraft.phone} onChange={handleProfileField} />
+            </label>
+            <label>
+              Email
+              <input name="email" value={profileDraft.email} onChange={handleProfileField} />
+            </label>
+            <label>
+              Blood Group
+              <input name="bloodGroup" value={profileDraft.bloodGroup} onChange={handleProfileField} />
+            </label>
+            <label>
+              Medical Info (optional)
+              <input name="allergyInfo" value={profileDraft.allergyInfo} onChange={handleProfileField} />
+            </label>
+          </div>
+
+          <div className="inline-actions">
+            <button
+              type="button"
+              onClick={() => setProfileDraft(profile)}
+            >
+              Reset
+            </button>
+            <button className="erp-primary-btn" type="button" onClick={saveProfile}>
+              Update Profile
+            </button>
+          </div>
+        </section>
+      );
+    }
+
     return (
       <section className="erp-panel">
-        <h3>Edit Profile</h3>
-        <p>Update your name, contact info, and optional medical details.</p>
-
-        <div className="erp-form-grid">
-          <label>
-            Name
-            <input name="name" value={profileDraft.name} onChange={handleProfileField} />
-          </label>
-          <label>
-            Phone
-            <input name="phone" value={profileDraft.phone} onChange={handleProfileField} />
-          </label>
-          <label>
-            Email
-            <input name="email" value={profileDraft.email} onChange={handleProfileField} />
-          </label>
-          <label>
-            Blood Group
-            <input name="bloodGroup" value={profileDraft.bloodGroup} onChange={handleProfileField} />
-          </label>
-          <label>
-            Medical Info (optional)
-            <input name="allergyInfo" value={profileDraft.allergyInfo} onChange={handleProfileField} />
-          </label>
-        </div>
-
-        <div className="inline-actions">
-          <button
-            type="button"
-            onClick={() => setProfileDraft(profile)}
-          >
-            Reset
-          </button>
-          <button className="erp-primary-btn" type="button" onClick={saveProfile}>
-            Update Profile
-          </button>
-        </div>
+        <h3>Section Not Available</h3>
+        <p>Select a valid menu item from the left panel.</p>
       </section>
     );
   };
@@ -1250,13 +1287,13 @@ function PatientModule({ currentUsername = "patient" }) {
 
   return (
     <section className="admin-erp-shell">
-      <aside className="admin-left-panel patient-sidebar">
-        <nav className="erp-side-nav admin-erp-side-nav patient-side-nav">
+      <aside className="admin-left-panel">
+        <nav className="erp-side-nav admin-erp-side-nav">
           {MENU_GROUPS.map((group) => (
-            <div key={group.key} className="erp-nav-group admin-erp-nav-group patient-nav-group">
+            <div key={group.key} className="erp-nav-group admin-erp-nav-group">
               <button
                 type="button"
-                className="erp-group-btn admin-erp-group-btn patient-group-btn"
+                className="erp-group-btn admin-erp-group-btn"
                 onClick={() => {
                   setOpenGroups((prev) => ({
                     ...prev,
@@ -1272,16 +1309,16 @@ function PatientModule({ currentUsername = "patient" }) {
                 <span className="menu-label">
                   {group.label}
                 </span>
-                <span className="menu-toggle" aria-hidden="true">{openGroups[group.key] ? "−" : "+"}</span>
+                <span aria-hidden="true">{openGroups[group.key] ? "▼" : "▶"}</span>
               </button>
 
               {openGroups[group.key] ? (
-                <div className="erp-group-items admin-erp-group-items patient-group-items">
+                <div className="erp-group-items admin-erp-group-items">
                   {group.items.map((item) => (
                     <button
                       key={item.key}
                       type="button"
-                      className={`patient-sub-item ${activeSubNavKey === item.key ? "active" : ""}`}
+                      className={activeSubNavKey === item.key ? "active" : ""}
                       onClick={() => {
                         setActiveSubNavKey(item.key);
                         setActiveMenu(item.targetMenu || item.key);

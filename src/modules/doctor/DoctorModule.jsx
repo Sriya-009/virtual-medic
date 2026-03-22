@@ -17,7 +17,8 @@ const TABS = [
     items: [
       { key: "appointments-upcoming", label: "Upcoming", targetTab: "appointments" },
       { key: "appointments-past", label: "Past", targetTab: "appointments" },
-      { key: "appointments-requests", label: "Requests", targetTab: "appointments" }
+      { key: "appointments-requests", label: "Requests", targetTab: "appointments" },
+      { key: "appointments-schedule", label: "Schedule", targetTab: "appointments" }
     ]
   },
   {
@@ -683,29 +684,29 @@ function DoctorModule({ currentUsername = "doctor" }) {
 
   return (
     <section className="admin-erp-shell">
-      <aside className="admin-left-panel patient-sidebar">
-        <nav className="erp-side-nav admin-erp-side-nav patient-side-nav">
+      <aside className="admin-left-panel">
+        <nav className="erp-side-nav admin-erp-side-nav">
           {TABS.map((group) => (
-            <div key={group.key} className="erp-nav-group admin-erp-nav-group patient-nav-group">
+            <div key={group.key} className="erp-nav-group admin-erp-nav-group">
               <button
                 type="button"
-                className="erp-group-btn admin-erp-group-btn patient-group-btn"
+                className="erp-group-btn admin-erp-group-btn"
                 onClick={() => handleMainNavClick(group)}
                 aria-expanded={openGroups[group.key]}
               >
                 <span className="menu-label">
                   {group.label}
                 </span>
-                <span className="menu-toggle" aria-hidden="true">{openGroups[group.key] ? "−" : "+"}</span>
+                <span aria-hidden="true">{openGroups[group.key] ? "▼" : "▶"}</span>
               </button>
 
               {openGroups[group.key] ? (
-                <div className="erp-group-items admin-erp-group-items patient-group-items">
+                <div className="erp-group-items admin-erp-group-items">
                   {group.items.map((tab) => (
                     <button
                       key={tab.key}
                       type="button"
-                      className={`patient-sub-item ${activeSubNavKey === tab.key ? "active" : ""}`}
+                      className={activeSubNavKey === tab.key ? "active" : ""}
                       onClick={() => handleSubNavClick(tab)}
                     >
                       {tab.label}
@@ -752,24 +753,56 @@ function DoctorModule({ currentUsername = "doctor" }) {
 
         {activeTab === "dashboard" ? (
           <section className="erp-panel patient-home-panel">
-            <h3 className="patient-welcome">Welcome {profileForm.fullName}</h3>
+            {isSubSectionVisible(["dashboard-total-patients"]) ? (
+              <>
+                <h3 className="patient-welcome">Welcome {profileForm.fullName}</h3>
 
-            <div className="patient-home-grid">
-              {doctorHomeCards.map((card) => (
-                <button
-                  key={`${card.key}-${card.label}`}
-                  type="button"
-                  className="patient-home-card"
-                  onClick={() => setActiveTab(card.key)}
-                >
-                  <div className="patient-card-content">
-                    <p className="patient-card-label">{card.label}</p>
-                    <p className="patient-card-value">{card.value}</p>
-                    <p className="patient-card-detail">{card.detail}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+                <div className="patient-home-grid">
+                  {doctorHomeCards.map((card) => (
+                    <button
+                      key={`${card.key}-${card.label}`}
+                      type="button"
+                      className="patient-home-card"
+                      onClick={() => setActiveTab(card.key)}
+                    >
+                      <div className="patient-card-content">
+                        <p className="patient-card-label">{card.label}</p>
+                        <p className="patient-card-value">{card.value}</p>
+                        <p className="patient-card-detail">{card.detail}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : null}
+
+            {isSubSectionVisible(["dashboard-appointments-count"]) ? (
+              <div className="quick-section">
+                <h4>Dashboard Statistics</h4>
+                <div className="erp-stats-grid doctor-stats">
+                  <article className="erp-stat-card">
+                    <h4>Upcoming</h4>
+                    <p>{upcomingAppointments.length}</p>
+                    <span>Confirmed and requested</span>
+                  </article>
+                  <article className="erp-stat-card">
+                    <h4>Completed</h4>
+                    <p>{pastAppointments.filter((row) => row.status === "Completed").length}</p>
+                    <span>Finished consultations</span>
+                  </article>
+                  <article className="erp-stat-card">
+                    <h4>Patients</h4>
+                    <p>{PATIENTS.length}</p>
+                    <span>Tracked this period</span>
+                  </article>
+                  <article className="erp-stat-card">
+                    <h4>Unread Alerts</h4>
+                    <p>{unreadNotifications.length}</p>
+                    <span>Needs attention</span>
+                  </article>
+                </div>
+              </div>
+            ) : null}
           </section>
         ) : null}
 
@@ -1105,6 +1138,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
                   ))}
                 </select>
               </label>
+              {isSubSectionVisible(["records-diagnosis"]) ? (
               <label>
                 Diagnosis
                 <input
@@ -1114,6 +1148,8 @@ function DoctorModule({ currentUsername = "doctor" }) {
                   placeholder="Type diagnosis"
                 />
               </label>
+              ) : null}
+              {isSubSectionVisible(["records-diagnosis"]) ? (
               <label>
                 Symptoms
                 <input
@@ -1123,6 +1159,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
                   placeholder="Type symptoms"
                 />
               </label>
+              ) : null}
             </div>
             ) : null}
             {isSubSectionVisible(["records-notes", "records-diagnosis"]) ? (
@@ -1140,6 +1177,13 @@ function DoctorModule({ currentUsername = "doctor" }) {
             <button className="erp-primary-btn" type="button" onClick={saveMedicalRecord}>
               Update Patient Record
             </button>
+            ) : null}
+
+            {isSubSectionVisible(["records-notes"]) ? (
+            <div className="quick-section">
+              <h4>Quick Notes</h4>
+              <p>Use this section to capture short consultation notes quickly.</p>
+            </div>
             ) : null}
 
             {isSubSectionVisible(["records-diagnosis", "records-notes"]) ? (
@@ -1477,10 +1521,6 @@ function DoctorModule({ currentUsername = "doctor" }) {
                     <input name="bio" value={profileForm.bio} readOnly />
                   </label>
                 </div>
-
-                <button className="erp-primary-btn" type="button" onClick={() => setIsEditingProfile(true)}>
-                  Edit Profile
-                </button>
               </>
             ) : (
               <>
@@ -1529,15 +1569,17 @@ function DoctorModule({ currentUsername = "doctor" }) {
 
       {consultationModal.open ? (
         <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <div className="modal-card">
-            <h3>Start {consultationModal.mode}</h3>
-            <p>
-              Patient: <strong>{consultationModal.patientName}</strong>
-            </p>
+          <div className="modal-card consultation-modal">
+            <div className="consultation-modal-head">
+              <h3>Start {consultationModal.mode}</h3>
+              <span className="consultation-patient-pill">Patient: {consultationModal.patientName}</span>
+            </div>
+            <p className="consultation-modal-subtitle">Add a short reason so this session is clearly documented.</p>
 
             <label className="doctor-notes-label">
               Consultation Reason / Notes
               <textarea
+                className="consultation-textarea"
                 value={consultationModal.note}
                 onChange={(event) =>
                   setConsultationModal((prev) => ({ ...prev, note: event.target.value }))

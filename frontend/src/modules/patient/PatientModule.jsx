@@ -83,79 +83,13 @@ const DOCTORS = [
   { id: "D-4", name: "Dr. James Smith", specialization: "Orthopedics", availability: "Evening", experience: 14, rating: 4.5 }
 ];
 
-const SHARED_DEFAULT_APPOINTMENTS = [
-  {
-    id: "AP-101",
-    doctorName: "Dr. Sarah Johnson",
-    patientName: "John Doe",
-    specialization: "Cardiology",
-    date: "2026-03-25",
-    time: "10:00",
-    type: "Follow-up",
-    status: "Confirmed"
-  },
-  {
-    id: "AP-102",
-    doctorName: "Dr. Michael Chen",
-    patientName: "John Doe",
-    specialization: "Neurology",
-    date: "2026-03-28",
-    time: "14:30",
-    type: "Consultation",
-    status: "Requested"
-  }
-];
+const SHARED_DEFAULT_APPOINTMENTS = [];
 
-const MEDICAL_HISTORY = [
-  {
-    id: "MR-201",
-    title: "Hypertension Follow-up",
-    diagnosis: "Blood pressure within control range",
-    prescriptions: "Lisinopril 10mg",
-    doctor: "Dr. Sarah Johnson",
-    date: "2026-03-15"
-  },
-  {
-    id: "MR-202",
-    title: "Annual Blood Work",
-    diagnosis: "Mild cholesterol elevation",
-    prescriptions: "Atorvastatin 40mg",
-    doctor: "Dr. Sarah Johnson",
-    date: "2026-02-10"
-  }
-];
+const MEDICAL_HISTORY = [];
 
-const SHARED_DEFAULT_PRESCRIPTIONS = [
-  {
-    id: "RX-301",
-    patientName: "John Doe",
-    medicine: "Lisinopril 10mg",
-    dosage: "Once daily",
-    duration: "30 days",
-    prescribedBy: "Dr. Sarah Johnson",
-    refill: "Needed",
-    status: "Active",
-    sentTo: "Patient",
-    createdAt: "2026-03-15 10:30"
-  },
-  {
-    id: "RX-302",
-    patientName: "John Doe",
-    medicine: "Metformin 500mg",
-    dosage: "Twice daily",
-    duration: "60 days",
-    prescribedBy: "Dr. Michael Chen",
-    refill: "Available",
-    status: "Active",
-    sentTo: "Patient & Pharmacist",
-    createdAt: "2026-03-18 09:20"
-  }
-];
+const SHARED_DEFAULT_PRESCRIPTIONS = [];
 
-const INITIAL_INVOICES = [
-  { id: "INV-401", item: "Consultation - Cardiology", amount: 45, status: "Pending" },
-  { id: "INV-402", item: "Medicine Order", amount: 28, status: "Pending" }
-];
+const INITIAL_INVOICES = [];
 
 const STORAGE_KEYS = {
   appointments: "medico.shared.appointments",
@@ -189,11 +123,42 @@ function getStoredObject(key, fallbackValue) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : fallbackValue;
 }
 
+function removeLegacySeedEntries(entries, legacyIds) {
+  return entries.filter((entry) => !legacyIds.has(String(entry?.id || "")));
+}
+
+function sanitizePatientProfile(profile, currentUsername) {
+  const normalized = {
+    name: currentUsername || "Patient",
+    phone: "",
+    email: "",
+    bloodGroup: "",
+    allergyInfo: "",
+    ...(profile && typeof profile === "object" ? profile : {})
+  };
+
+  const isLegacyProfile =
+    normalized.name === "John Doe" &&
+    normalized.email === "john.doe@email.com";
+
+  if (isLegacyProfile) {
+    return {
+      name: currentUsername || "Patient",
+      phone: "",
+      email: "",
+      bloodGroup: "",
+      allergyInfo: ""
+    };
+  }
+
+  return normalized;
+}
+
 function normalizeAppointment(entry) {
   return {
     id: entry.id || `AP-${Date.now()}`,
     doctorName: entry.doctorName || "Unknown Doctor",
-    patientName: entry.patientName || "John Doe",
+    patientName: entry.patientName || "Patient",
     specialization: entry.specialization || "General",
     date: entry.date || "2026-03-25",
     time: entry.time || "10:00",
@@ -250,9 +215,12 @@ function PatientModule({ currentUsername = "patient" }) {
   const [doctorSearch, setDoctorSearch] = useState({ name: "", specialization: "All", availability: "All" });
 
   const [appointments, setAppointments] = useState(() =>
-    getStoredArray(STORAGE_KEYS.appointments, SHARED_DEFAULT_APPOINTMENTS).map(normalizeAppointment)
+    removeLegacySeedEntries(
+      getStoredArray(STORAGE_KEYS.appointments, SHARED_DEFAULT_APPOINTMENTS),
+      new Set(["AP-101", "AP-102"])
+    ).map(normalizeAppointment)
   );
-  const [bookingForm, setBookingForm] = useState({ doctorId: "D-1", date: "", time: "" });
+  const [bookingForm, setBookingForm] = useState({ doctorId: DOCTORS[0]?.id || "", date: "", time: "" });
 
   const [rescheduleId, setRescheduleId] = useState("");
   const [rescheduleForm, setRescheduleForm] = useState({ date: "", time: "" });
@@ -264,25 +232,34 @@ function PatientModule({ currentUsername = "patient" }) {
   const [chatLog, setChatLog] = useState([]);
 
   const [prescriptions, setPrescriptions] = useState(() =>
-    getStoredArray(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS)
+    removeLegacySeedEntries(
+      getStoredArray(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS),
+      new Set(["RX-301", "RX-302"])
+    )
   );
   const [uploadedPatientFiles] = useState(() => getStoredArray(STORAGE_KEYS.patientFiles, []));
 
   const [invoices, setInvoices] = useState(() =>
-    getStoredArray(STORAGE_KEYS.invoices, INITIAL_INVOICES).map(normalizeMoneyEntryAmount)
+    removeLegacySeedEntries(
+      getStoredArray(STORAGE_KEYS.invoices, INITIAL_INVOICES),
+      new Set(["INV-401", "INV-402"])
+    ).map(normalizeMoneyEntryAmount)
   );
   const [payments, setPayments] = useState(() =>
     getStoredArray(STORAGE_KEYS.payments, []).map(normalizeMoneyEntryAmount)
   );
 
   const [profile, setProfile] = useState(() =>
-    getStoredObject(STORAGE_KEYS.profile, {
-      name: "John Doe",
-      phone: "+1 555-881-021",
-      email: "john.doe@email.com",
-      bloodGroup: "O+",
-      allergyInfo: "No known drug allergies"
-    })
+    sanitizePatientProfile(
+      getStoredObject(STORAGE_KEYS.profile, {
+        name: currentUsername || "Patient",
+        phone: "",
+        email: "",
+        bloodGroup: "",
+        allergyInfo: ""
+      }),
+      currentUsername
+    )
   );
   const [profileDraft, setProfileDraft] = useState(profile);
   const [payingInvoiceId, setPayingInvoiceId] = useState("");
@@ -309,7 +286,7 @@ function PatientModule({ currentUsername = "patient" }) {
     window.setTimeout(() => setUiNotice(""), 2500);
   };
 
-  const currentPatientName = profile.name.trim() || "John Doe";
+  const currentPatientName = profile.name.trim() || "Patient";
 
   const menuTitle = useMemo(() => {
     if (activeSubNavKey) {
@@ -401,33 +378,36 @@ function PatientModule({ currentUsername = "patient" }) {
   );
 
   const homeCards = useMemo(
-    () => [
-      {
-        key: "appointment-booking",
-        label: "Upcoming Appointments",
-        value: upcomingAppointments.length,
-        detail: "Next: March 25, 2026"
-      },
-      {
-        key: "prescriptions",
-        label: "Active Prescriptions",
-        value: activePrescriptions.length,
-        detail: "1 refill needed"
-      },
-      {
-        key: "medical-records",
-        label: "Medical Records",
-        value: MEDICAL_HISTORY.length,
-        detail: "Last updated today"
-      },
-      {
-        key: "billing",
-        label: "Health Score",
-        value: "85%",
-        detail: "Good condition"
-      }
-    ],
-    [upcomingAppointments.length, activePrescriptions.length]
+    () => {
+      const nextAppointment = upcomingAppointments[0];
+      return [
+        {
+          key: "appointment-booking",
+          label: "Upcoming Appointments",
+          value: upcomingAppointments.length,
+          detail: nextAppointment ? `Next: ${nextAppointment.date} ${nextAppointment.time}` : "No upcoming appointments"
+        },
+        {
+          key: "prescriptions",
+          label: "Active Prescriptions",
+          value: activePrescriptions.length,
+          detail: `${activePrescriptions.filter((entry) => entry.refill === "Needed").length} refill needed`
+        },
+        {
+          key: "medical-records",
+          label: "Medical Records",
+          value: MEDICAL_HISTORY.length,
+          detail: MEDICAL_HISTORY.length > 0 ? "Records available" : "No records available"
+        },
+        {
+          key: "billing",
+          label: "Pending Invoices",
+          value: pendingInvoices.length,
+          detail: "Based on current billing data"
+        }
+      ];
+    },
+    [upcomingAppointments, activePrescriptions, pendingInvoices.length]
   );
 
   const handleDoctorSearch = (event) => {

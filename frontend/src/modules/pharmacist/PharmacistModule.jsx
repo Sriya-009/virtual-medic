@@ -58,78 +58,21 @@ const MENU_GROUPS = [
   }
 ];
 
-const CURRENT_PHARMACIST_NAME = "Pharmacist Pro";
+const CURRENT_PHARMACIST_NAME = "Pharmacist";
 const CURRENT_PHARMACIST_ID = "PH-001";
 
 // Default medicines inventory
-const DEFAULT_MEDICINE_INVENTORY = [
-  { id: "MED-001", name: "Lisinopril 10mg", category: "Cardiovascular", stock: 450, minStock: 100, expiryDate: "2027-08-15", status: "In Stock", price: 2.5 },
-  { id: "MED-002", name: "Metformin 500mg", category: "Diabetes", stock: 320, minStock: 150, expiryDate: "2027-06-20", status: "In Stock", price: 1.8 },
-  { id: "MED-003", name: "Albuterol Inhaler", category: "Respiratory", stock: 45, minStock: 50, expiryDate: "2026-12-10", status: "Low Stock", price: 8.5 },
-  { id: "MED-004", name: "Amoxicillin 250mg", category: "Antibiotic", stock: 180, minStock: 100, expiryDate: "2026-09-05", status: "In Stock", price: 1.2 },
-  { id: "MED-005", name: "Omeprazole 20mg", category: "Gastrointestinal", stock: 75, minStock: 100, expiryDate: "2027-03-12", status: "Low Stock", price: 3.2 },
-  { id: "MED-006", name: "Atorvastatin 40mg", category: "Cardiovascular", stock: 290, minStock: 100, expiryDate: "2027-11-22", status: "In Stock", price: 4.1 }
-];
+const DEFAULT_MEDICINE_INVENTORY = [];
 
 // Default orders from patients
-const DEFAULT_ORDERS = [
-  { id: "ORD-001", prescriptionId: "RX-302", patientName: "John Doe", medicines: ["Metformin 500mg (Qty: 30)"], orderDate: "2026-03-20", status: "Pending", paymentStatus: "Verified", estimatedDelivery: "2026-03-23" },
-  { id: "ORD-002", prescriptionId: "RX-301", patientName: "Jane Smith", medicines: ["Lisinopril 10mg (Qty: 30)"], orderDate: "2026-03-19", status: "Approved", paymentStatus: "Pending", estimatedDelivery: "2026-03-22" },
-  { id: "ORD-003", prescriptionId: "RX-305", patientName: "Robert Johnson", medicines: ["Atorvastatin 40mg (Qty: 60)"], orderDate: "2026-03-21", status: "Dispatched", paymentStatus: "Verified", estimatedDelivery: "2026-03-24" }
-];
+const DEFAULT_ORDERS = [];
 
 // Default transaction history
-const DEFAULT_TRANSACTIONS = [
-  { id: "TRN-001", orderId: "ORD-045", patient: "Michael Brown", medicine: "Amoxicillin 250mg", quantity: "21 capsules", amount: 25.20, date: "2026-03-21", status: "Dispensed" },
-  { id: "TRN-002", orderId: "ORD-044", patient: "Sarah Williams", medicine: "Atorvastatin 40mg", quantity: "30 tablets", amount: 123.00, date: "2026-03-21", status: "Dispensed" },
-  { id: "TRN-003", orderId: "ORD-043", patient: "David Lee", medicine: "Omeprazole 20mg", quantity: "28 capsules", amount: 89.60, date: "2026-03-20", status: "Dispensed" },
-  { id: "TRN-004", orderId: "ORD-042", patient: "Lisa Anderson", medicine: "Metformin 500mg", quantity: "60 tablets", amount: 108.00, date: "2026-03-20", status: "Dispensed" }
-];
+const DEFAULT_TRANSACTIONS = [];
 
-const DOCTORS_LIST = [
-  { id: "D-1", name: "Dr. Sarah Johnson", specialization: "Cardiology", license: "LIC-001" },
-  { id: "D-2", name: "Dr. Michael Chen", specialization: "Neurology", license: "LIC-002" },
-  { id: "D-3", name: "Dr. Lisa Wong", specialization: "Pediatrics", license: "LIC-003" }
-];
+const DOCTORS_LIST = [];
 
-const SHARED_DEFAULT_PRESCRIPTIONS = [
-  {
-    id: "RX-301",
-    patientName: "John Doe",
-    medicine: "Lisinopril 10mg",
-    dosage: "Once daily",
-    duration: "30 days",
-    prescribedBy: "Dr. Sarah Johnson",
-    refill: "Needed",
-    status: "Active",
-    sentTo: "Patient & Pharmacist",
-    createdAt: "2026-03-15 10:30"
-  },
-  {
-    id: "RX-302",
-    patientName: "John Doe",
-    medicine: "Metformin 500mg",
-    dosage: "Twice daily",
-    duration: "60 days",
-    prescribedBy: "Dr. Michael Chen",
-    refill: "Available",
-    status: "Active",
-    sentTo: "Patient & Pharmacist",
-    createdAt: "2026-03-18 09:20"
-  },
-  {
-    id: "RX-303",
-    patientName: "Jane Smith",
-    medicine: "Lisinopril 10mg",
-    dosage: "Once daily",
-    duration: "30 days",
-    prescribedBy: "Dr. Sarah Johnson",
-    refill: "Needed",
-    status: "Active",
-    sentTo: "Patient & Pharmacist",
-    createdAt: "2026-03-19 14:00"
-  }
-];
+const SHARED_DEFAULT_PRESCRIPTIONS = [];
 
 const STORAGE_KEYS = {
   prescriptions: "medico.shared.prescriptions",
@@ -158,6 +101,39 @@ function readArrayStorage(key, fallbackValue) {
 function readObjectStorage(key, fallbackValue) {
   const value = readStorage(key, fallbackValue);
   return value && typeof value === "object" && !Array.isArray(value) ? value : fallbackValue;
+}
+
+function removeLegacySeedEntries(entries, legacyIds) {
+  return entries.filter((entry) => !legacyIds.has(String(entry?.id || "")));
+}
+
+function sanitizePharmacistProfile(profile, currentUsername) {
+  const normalized = {
+    name: currentUsername || CURRENT_PHARMACIST_NAME,
+    id: CURRENT_PHARMACIST_ID,
+    email: "",
+    phone: "",
+    license: "",
+    facility: "",
+    ...(profile && typeof profile === "object" ? profile : {})
+  };
+
+  const isLegacyProfile =
+    normalized.name === "Pharmacist Pro" &&
+    normalized.email === "pharmacist@medico.com";
+
+  if (isLegacyProfile) {
+    return {
+      name: currentUsername || CURRENT_PHARMACIST_NAME,
+      id: CURRENT_PHARMACIST_ID,
+      email: "",
+      phone: "",
+      license: "",
+      facility: ""
+    };
+  }
+
+  return normalized;
 }
 
 function normalizePrescription(entry) {
@@ -191,17 +167,33 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
   // Prescriptions data
   const [prescriptions, setPrescriptions] = useState(() => {
     const shared = readArrayStorage(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS);
-    return shared.map(normalizePrescription);
+    return removeLegacySeedEntries(shared, new Set(["RX-301", "RX-302", "RX-303"]))
+      .map(normalizePrescription);
   });
 
   // Inventory management
-  const [inventory, setInventory] = useState(() => readArrayStorage(STORAGE_KEYS.inventory, DEFAULT_MEDICINE_INVENTORY));
+  const [inventory, setInventory] = useState(() =>
+    removeLegacySeedEntries(
+      readArrayStorage(STORAGE_KEYS.inventory, DEFAULT_MEDICINE_INVENTORY),
+      new Set(["MED-001", "MED-002", "MED-003", "MED-004", "MED-005", "MED-006"])
+    )
+  );
 
   // Orders management
-  const [orders, setOrders] = useState(() => readArrayStorage(STORAGE_KEYS.orders, DEFAULT_ORDERS));
+  const [orders, setOrders] = useState(() =>
+    removeLegacySeedEntries(
+      readArrayStorage(STORAGE_KEYS.orders, DEFAULT_ORDERS),
+      new Set(["ORD-001", "ORD-002", "ORD-003"])
+    )
+  );
 
   // Transactions
-  const [transactions, setTransactions] = useState(() => readArrayStorage(STORAGE_KEYS.transactions, DEFAULT_TRANSACTIONS));
+  const [transactions, setTransactions] = useState(() =>
+    removeLegacySeedEntries(
+      readArrayStorage(STORAGE_KEYS.transactions, DEFAULT_TRANSACTIONS),
+      new Set(["TRN-001", "TRN-002", "TRN-003", "TRN-004"])
+    )
+  );
 
   // Verification states
   const [verificationForm, setVerificationForm] = useState({ prescriptionId: "", verificationNotes: "", approved: false });
@@ -230,14 +222,17 @@ function PharmacistModule({ currentUsername = "pharmacist" }) {
 
   // Profile
   const [profile, setProfile] = useState(() => {
-    return readObjectStorage(STORAGE_KEYS.profile, {
-      name: CURRENT_PHARMACIST_NAME,
-      id: CURRENT_PHARMACIST_ID,
-      email: "pharmacist@medico.com",
-      phone: "+1-888-123-4567",
-      license: "PH-LIC-001",
-      facility: "Medico Pharmacy"
-    });
+    return sanitizePharmacistProfile(
+      readObjectStorage(STORAGE_KEYS.profile, {
+        name: currentUsername || CURRENT_PHARMACIST_NAME,
+        id: CURRENT_PHARMACIST_ID,
+        email: "",
+        phone: "",
+        license: "",
+        facility: ""
+      }),
+      currentUsername
+    );
   });
 
   const showNotice = (message) => {

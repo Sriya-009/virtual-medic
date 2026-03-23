@@ -81,85 +81,17 @@ const TABS = [
   }
 ];
 
-const CURRENT_DOCTOR_NAME = "Dr. Michael Chen";
+const CURRENT_DOCTOR_NAME = "Doctor";
 
-const PATIENTS = [
-  { id: "P-01", name: "John Doe", age: 45, history: "Hypertension", lastVisit: "2026-03-15" },
-  { id: "P-02", name: "Jane Smith", age: 32, history: "Asthma", lastVisit: "2026-03-21" },
-  { id: "P-03", name: "Robert Johnson", age: 58, history: "Diabetes Type 2", lastVisit: "2026-03-19" }
-];
+const PATIENTS = [];
 
-const CONSULTATION_LOGS = [
-  { date: "2026-03-21", patient: "John Doe", mode: "Video", note: "Blood pressure review" },
-  { date: "2026-03-20", patient: "Jane Smith", mode: "Chat", note: "Inhaler dosage advice" },
-  { date: "2026-03-19", patient: "Robert Johnson", mode: "Video", note: "Diet and exercise counseling" }
-];
+const CONSULTATION_LOGS = [];
 
-const NOTIFICATIONS = [
-  "New appointment request from Mia Clark",
-  "Patient John Doe sent a new message",
-  "Prescription delivered to pharmacist for Jane Smith"
-];
+const NOTIFICATIONS = [];
 
-const SHARED_DEFAULT_APPOINTMENTS = [
-  {
-    id: "AP-101",
-    doctorName: "Dr. Sarah Johnson",
-    patientName: "John Doe",
-    specialization: "Cardiology",
-    date: "2026-03-25",
-    time: "10:00",
-    type: "Follow-up",
-    status: "Confirmed"
-  },
-  {
-    id: "AP-102",
-    doctorName: "Dr. Michael Chen",
-    patientName: "John Doe",
-    specialization: "Neurology",
-    date: "2026-03-28",
-    time: "14:30",
-    type: "Consultation",
-    status: "Requested"
-  },
-  {
-    id: "AP-103",
-    doctorName: "Dr. Michael Chen",
-    patientName: "Jane Smith",
-    specialization: "Neurology",
-    date: "2026-03-20",
-    time: "11:45",
-    type: "Check-up",
-    status: "Completed"
-  }
-];
+const SHARED_DEFAULT_APPOINTMENTS = [];
 
-const SHARED_DEFAULT_PRESCRIPTIONS = [
-  {
-    id: "RX-301",
-    patientName: "John Doe",
-    medicine: "Lisinopril 10mg",
-    dosage: "Once daily",
-    duration: "30 days",
-    prescribedBy: "Dr. Sarah Johnson",
-    refill: "Needed",
-    status: "Active",
-    sentTo: "Patient",
-    createdAt: "2026-03-15 10:30"
-  },
-  {
-    id: "RX-302",
-    patientName: "John Doe",
-    medicine: "Metformin 500mg",
-    dosage: "Twice daily",
-    duration: "60 days",
-    prescribedBy: "Dr. Michael Chen",
-    refill: "Available",
-    status: "Active",
-    sentTo: "Patient & Pharmacist",
-    createdAt: "2026-03-18 09:20"
-  }
-];
+const SHARED_DEFAULT_PRESCRIPTIONS = [];
 
 const STORAGE_KEYS = {
   appointments: "medico.shared.appointments",
@@ -186,12 +118,12 @@ const DEFAULT_AVAILABILITY = {
 
 const DEFAULT_PROFILE = {
   fullName: CURRENT_DOCTOR_NAME,
-  specialization: "Neurology",
-  experience: "12 years",
-  email: "michael.chen@hospital.com",
-  phone: "+1 555-730-2201",
-  department: "Neurology",
-  bio: "Focused on neuro care, long-term treatment plans, and tele-consult follow-ups."
+  specialization: "",
+  experience: "",
+  email: "",
+  phone: "",
+  department: "",
+  bio: ""
 };
 
 function readStorage(key, fallbackValue) {
@@ -218,11 +150,51 @@ function readObjectStorage(key, fallbackValue) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : fallbackValue;
 }
 
+function removeLegacySeedEntries(entries, legacyIds) {
+  return entries.filter((entry) => !legacyIds.has(String(entry?.id || "")));
+}
+
+function removeLegacySeedConsultationLogs(entries) {
+  const legacyRows = new Set([
+    "2026-03-21|John Doe|Video|Blood pressure review",
+    "2026-03-20|Jane Smith|Chat|Inhaler dosage advice",
+    "2026-03-19|Robert Johnson|Video|Diet and exercise counseling"
+  ]);
+
+  return entries.filter((entry) => {
+    const signature = `${entry?.date || ""}|${entry?.patient || ""}|${entry?.mode || ""}|${entry?.note || ""}`;
+    return !legacyRows.has(signature);
+  });
+}
+
+function sanitizeDoctorProfile(profile, currentUsername) {
+  const normalized = {
+    ...DEFAULT_PROFILE,
+    ...(profile && typeof profile === "object" ? profile : {})
+  };
+
+  const isLegacyProfile =
+    normalized.fullName === "Dr. Michael Chen" &&
+    normalized.email === "michael.chen@hospital.com";
+
+  if (isLegacyProfile) {
+    return {
+      ...DEFAULT_PROFILE,
+      fullName: currentUsername || "Doctor"
+    };
+  }
+
+  return {
+    ...normalized,
+    fullName: normalized.fullName || currentUsername || "Doctor"
+  };
+}
+
 function normalizeAppointment(entry) {
   return {
     id: entry.id || `AP-${Date.now()}`,
     doctorName: entry.doctorName || CURRENT_DOCTOR_NAME,
-    patientName: entry.patientName || entry.patient || "John Doe",
+    patientName: entry.patientName || entry.patient || "Patient",
     specialization: entry.specialization || "General",
     date: entry.date || "2026-03-25",
     time: entry.time || "10:00",
@@ -266,22 +238,23 @@ function DoctorModule({ currentUsername = "doctor" }) {
   const [uiNotice, setUiNotice] = useState("");
   const [appointmentRows, setAppointmentRows] = useState(() => {
     const shared = readArrayStorage(STORAGE_KEYS.appointments, SHARED_DEFAULT_APPOINTMENTS);
-    return shared.map(normalizeAppointment);
+    const cleaned = removeLegacySeedEntries(shared, new Set(["AP-101", "AP-102", "AP-103"]));
+    return cleaned.map(normalizeAppointment);
   });
   const [patientSearch, setPatientSearch] = useState("");
-  const [recordForm, setRecordForm] = useState({ patientId: "P-01", diagnosis: "", symptoms: "", notes: "" });
+  const [recordForm, setRecordForm] = useState({ patientId: "", diagnosis: "", symptoms: "", notes: "" });
   const [medicalRecords, setMedicalRecords] = useState(() => readArrayStorage(STORAGE_KEYS.records, []));
-  const [fileUploadPatientId, setFileUploadPatientId] = useState("P-01");
+  const [fileUploadPatientId, setFileUploadPatientId] = useState("");
   const [uploadedFileSearch, setUploadedFileSearch] = useState("");
   const [pendingPatientFiles, setPendingPatientFiles] = useState([]);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [uploadedPatientFiles, setUploadedPatientFiles] = useState(() => readArrayStorage(STORAGE_KEYS.patientFiles, []));
   const [previewFile, setPreviewFile] = useState(null);
   const [consultationLogs, setConsultationLogs] = useState(() =>
-    readArrayStorage(STORAGE_KEYS.consultationLogs, CONSULTATION_LOGS)
+    removeLegacySeedConsultationLogs(readArrayStorage(STORAGE_KEYS.consultationLogs, CONSULTATION_LOGS))
   );
   const [prescriptionForm, setPrescriptionForm] = useState({
-    patientId: "P-01",
+    patientId: "",
     medicine: "",
     dosage: "",
     duration: "",
@@ -290,20 +263,21 @@ function DoctorModule({ currentUsername = "doctor" }) {
   });
   const [editingPrescriptionId, setEditingPrescriptionId] = useState("");
   const [prescriptions, setPrescriptions] = useState(() =>
-    readArrayStorage(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS)
+    removeLegacySeedEntries(
+      readArrayStorage(STORAGE_KEYS.prescriptions, SHARED_DEFAULT_PRESCRIPTIONS),
+      new Set(["RX-301", "RX-302"])
+    )
   );
   const [availability, setAvailability] = useState(() => ({
     ...DEFAULT_AVAILABILITY,
     ...readObjectStorage(STORAGE_KEYS.availability, DEFAULT_AVAILABILITY)
   }));
-  const [profileForm, setProfileForm] = useState(() => ({
-    ...DEFAULT_PROFILE,
-    ...readObjectStorage(STORAGE_KEYS.profile, DEFAULT_PROFILE)
-  }));
-  const [profileDraft, setProfileDraft] = useState(() => ({
-    ...DEFAULT_PROFILE,
-    ...readObjectStorage(STORAGE_KEYS.profile, DEFAULT_PROFILE)
-  }));
+  const [profileForm, setProfileForm] = useState(() =>
+    sanitizeDoctorProfile(readObjectStorage(STORAGE_KEYS.profile, DEFAULT_PROFILE), currentUsername)
+  );
+  const [profileDraft, setProfileDraft] = useState(() =>
+    sanitizeDoctorProfile(readObjectStorage(STORAGE_KEYS.profile, DEFAULT_PROFILE), currentUsername)
+  );
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [consultationModal, setConsultationModal] = useState({
     open: false,
@@ -317,7 +291,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
   );
   const [showMessagesPanel, setShowMessagesPanel] = useState(false);
   const [messageDraft, setMessageDraft] = useState("");
-  const [selectedPatientId, setSelectedPatientId] = useState("P-01");
+  const [selectedPatientId, setSelectedPatientId] = useState("");
   const [doctorMessages, setDoctorMessages] = useState([]);
   const [readNotificationIds, setReadNotificationIds] = useState([]);
 
@@ -395,7 +369,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
   );
 
   const selectedPatient = useMemo(
-    () => PATIENTS.find((patient) => patient.id === selectedPatientId) || PATIENTS[0],
+    () => PATIENTS.find((patient) => patient.id === selectedPatientId) || PATIENTS[0] || null,
     [selectedPatientId]
   );
 
@@ -777,7 +751,7 @@ function DoctorModule({ currentUsername = "doctor" }) {
     const selectedPatient = PATIENTS.find((patient) => patient.name === entry.patientName);
     setEditingPrescriptionId(entry.id);
     setPrescriptionForm({
-      patientId: selectedPatient ? selectedPatient.id : "P-01",
+      patientId: selectedPatient ? selectedPatient.id : "",
       medicine: entry.medicine,
       dosage: entry.dosage,
       duration: entry.duration,

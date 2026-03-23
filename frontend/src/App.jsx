@@ -4,96 +4,57 @@ import DoctorModule from "./modules/doctor/DoctorModule";
 import PatientModule from "./modules/patient/PatientModule";
 import PharmacistModule from "./modules/pharmacist/PharmacistModule";
 
-const STORAGE_USERS_KEY = "medico.dummy.users";
-const DEFAULT_DUMMY_USERS = [
-  { username: "admin", password: "admin009", role: "admin", fullname: "Admin User", phone: "9000000001" },
-  { username: "doctor", password: "doctor123", role: "doctor", fullname: "Doctor User", phone: "9000000002" },
-  { username: "patient", password: "patient123", role: "patient", fullname: "Patient User", phone: "9000000003" },
-  { username: "pharmacist", password: "pharma123", role: "pharmacist", fullname: "Pharmacist User", phone: "9000000004" }
-];
+const API_BASE_URL = "http://localhost:5000";
+const STORAGE_TOKEN_KEY = "medico.jwt.token";
+const STORAGE_AUTH_USER_KEY = "medico.auth.user";
 
-const DEMO_USERS = [
-  { role: "Admin", username: "admin", password: "admin009" },
-  { role: "Doctor", username: "doctor", password: "doctor123" },
-  { role: "Patient", username: "patient", password: "patient123" },
-  { role: "Pharmacist", username: "pharmacist", password: "pharma123" }
-];
+const authApiRequest = async (endpoint, payload) => {
+  const url = `${API_BASE_URL}${endpoint}`;
+  console.log("[Auth API] Request:", endpoint, payload);
 
-const normalizeDummyUser = (user) => {
-  if (!user || typeof user !== "object") {
-    return null;
-  }
-
-  const username = String(user.username || "").trim();
-  const password = String(user.password || "");
-  const role = String(user.role || "patient").toLowerCase();
-  const fullname = String(user.fullname || username || "User").trim();
-  const phone = String(user.phone || "").trim();
-
-  if (!username || !password) {
-    return null;
-  }
-
-  return {
-    username,
-    password,
-    role,
-    fullname,
-    phone
-  };
-};
-
-const mergeWithDefaultUsers = (inputUsers) => {
-  const normalizedInput = Array.isArray(inputUsers)
-    ? inputUsers.map(normalizeDummyUser).filter(Boolean)
-    : [];
-
-  const mergedByUsername = new Map(
-    normalizedInput.map((user) => [user.username.toLowerCase(), user])
-  );
-
-  DEFAULT_DUMMY_USERS.forEach((defaultUser) => {
-    const key = defaultUser.username.toLowerCase();
-    if (!mergedByUsername.has(key)) {
-      mergedByUsername.set(key, { ...defaultUser });
-    }
-  });
-
-  return Array.from(mergedByUsername.values());
-};
-
-const loadDummyUsers = () => {
   try {
-    const raw = localStorage.getItem(STORAGE_USERS_KEY);
-    if (!raw) {
-      localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(DEFAULT_DUMMY_USERS));
-      return DEFAULT_DUMMY_USERS;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    let data = {};
+    try {
+      data = await response.json();
+    } catch {
+      data = {};
     }
 
-    const parsed = JSON.parse(raw);
-    const merged = mergeWithDefaultUsers(parsed);
-    localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(merged));
-    return merged;
-  } catch {
-    localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(DEFAULT_DUMMY_USERS));
-    return DEFAULT_DUMMY_USERS;
+    console.log("[Auth API] Response:", response.status, data);
+    return {
+      ok: response.ok,
+      status: response.status,
+      data
+    };
+  } catch (error) {
+    console.error("[Auth API] Network error:", error);
+    return {
+      ok: false,
+      status: 0,
+      data: {
+        message: "Unable to connect to backend. Please check if server is running."
+      }
+    };
   }
-};
-
-const saveDummyUsers = (users) => {
-  localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(users));
 };
 
 function App() {
   const [form, setForm] = useState({
-    username: "",
+    email: "",
     password: "",
     remember: false
   });
   const [error, setError] = useState("");
   const [activeRole, setActiveRole] = useState("");
   const [activeUsername, setActiveUsername] = useState("");
-  const [dummyUsers, setDummyUsers] = useState(() => loadDummyUsers());
 
   // Forgot Password States
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -111,15 +72,18 @@ function App() {
   // Sign Up States
   const [showSignup, setShowSignup] = useState(false);
   const [signupForm, setSignupForm] = useState({
-    fullname: "",
+    name: "",
     phone: "",
+    email: "",
     role: "patient",
+    specialization: "",
     username: "",
     password: "",
     confirmPassword: ""
   });
   const [signupError, setSignupError] = useState("");
   const [signupSuccess, setSignupSuccess] = useState("");
+  const [loginSuccess, setLoginSuccess] = useState("");
 
   // Password Visibility States
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -127,21 +91,6 @@ function App() {
   const [showSignupConfirmPassword, setShowSignupConfirmPassword] = useState(false);
   const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
   const [showForgotConfirmPassword, setShowForgotConfirmPassword] = useState(false);
-
-  const resetDemoAccounts = () => {
-    setDummyUsers(DEFAULT_DUMMY_USERS);
-    saveDummyUsers(DEFAULT_DUMMY_USERS);
-    setForm((prev) => ({ ...prev, username: "", password: "" }));
-    setError("");
-    setSignupError("");
-    setSignupSuccess("Demo accounts reset.");
-    setTimeout(() => setSignupSuccess(""), 1500);
-  };
-
-  const fillDemoCredentials = (username, password) => {
-    setForm((prev) => ({ ...prev, username, password }));
-    setError("");
-  };
 
   const ActiveModule = useMemo(() => {
     if (activeRole === "admin") {
@@ -169,44 +118,63 @@ function App() {
       ...prev,
       [name]: type === "checkbox" ? checked : value
     }));
+    setError("");
+    setLoginSuccess("");
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!form.username.trim() || !form.password) {
-      setError("Please enter username and password.");
+    if (!form.email.trim() || !form.password) {
+      setError("Please enter email and password.");
       return;
     }
 
-    const normalizedUsername = form.username.trim().toLowerCase();
-    const foundUser = dummyUsers.find(
-      (user) => user.username.toLowerCase() === normalizedUsername
-    );
+    const backendLoginPayload = {
+      email: form.email.trim(),
+      password: form.password
+    };
 
-    if (!foundUser || foundUser.password !== form.password) {
-      setError("Invalid username or password.");
+    const result = await authApiRequest("/api/auth/login", backendLoginPayload);
+
+    if (!result.ok) {
+      setError(result.data?.message || "Invalid email or password.");
+      setLoginSuccess("");
       return;
     }
+
+    const token = result.data?.token;
+    const user = result.data?.user || {};
+
+    if (token) {
+      localStorage.setItem(STORAGE_TOKEN_KEY, token);
+    }
+    localStorage.setItem(STORAGE_AUTH_USER_KEY, JSON.stringify(user));
+
+    const userRole = String(user.role || "patient").toLowerCase();
 
     setError("");
-    setActiveRole(foundUser.role);
-    setActiveUsername(foundUser.username);
+    setLoginSuccess(result.data?.message || "Login successful");
+    window.setTimeout(() => {
+      setActiveRole(userRole);
+      setActiveUsername(user.name || user.email || form.email.trim());
+    }, 700);
   };
 
   const logout = () => {
     setActiveRole("");
     setActiveUsername("");
     setForm((prev) => ({ ...prev, password: "" }));
+    setLoginSuccess("");
+    localStorage.removeItem(STORAGE_TOKEN_KEY);
+    localStorage.removeItem(STORAGE_AUTH_USER_KEY);
   };
 
   // Forgot Password Handlers
   const handleForgotPasswordClick = (e) => {
     e.preventDefault();
-    setShowForgotPassword(true);
-    setForgotStep("phone");
-    setForgotError("");
-    setForgotSuccess("");
+    setShowForgotPassword(false);
+    setError("Forgot password is not available right now.");
   };
 
   const handleForgotPhoneSubmit = (e) => {
@@ -219,13 +187,7 @@ function App() {
     }
 
     const normalizedPhone = forgotPhone.trim();
-    const foundUser = dummyUsers.find((user) => String(user.phone || "").trim() === normalizedPhone);
-    if (!foundUser) {
-      setForgotError("No account found for this phone number");
-      return;
-    }
-
-    setDetectedRole(String(foundUser.role || "patient"));
+    setDetectedRole("patient");
 
     // Generate random 4-digit OTP
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
@@ -272,18 +234,8 @@ function App() {
       return;
     }
 
-    const updatedUsers = dummyUsers.map((user) => {
-      if (String(user.phone || "").trim() !== registeredPhone) {
-        return user;
-      }
-      return {
-        ...user,
-        password: newPassword
-      };
-    });
-
-    setDummyUsers(updatedUsers);
-    saveDummyUsers(updatedUsers);
+    setForgotError("Password reset is not available right now.");
+    return;
 
     setForgotSuccess("Password reset successful! Redirecting to login...");
     setTimeout(() => {
@@ -326,12 +278,12 @@ function App() {
     }));
   };
 
-  const handleSignupSubmit = (e) => {
+  const handleSignupSubmit = async (e) => {
     e.preventDefault();
     setSignupError("");
     setSignupSuccess("");
 
-    if (!signupForm.fullname.trim() || !signupForm.phone.trim() || !signupForm.username.trim() || !signupForm.password || !signupForm.confirmPassword) {
+    if (!signupForm.name.trim() || !signupForm.phone.trim() || !signupForm.email.trim() || !signupForm.password || !signupForm.confirmPassword) {
       setSignupError("Please fill all fields");
       return;
     }
@@ -346,46 +298,66 @@ function App() {
       return;
     }
 
-    const normalizedUsername = signupForm.username.trim().toLowerCase();
-    const normalizedRole = String(signupForm.role || "patient").toLowerCase();
-    const allowedRoles = new Set(["admin", "doctor", "patient", "pharmacist"]);
-    const roleToStore = allowedRoles.has(normalizedRole) ? normalizedRole : "patient";
+    const selectedRole = String(signupForm.role || "patient").trim().toLowerCase();
+    const allowedRoles = new Set(["doctor", "patient", "pharmacist"]);
+    const roleToStore = allowedRoles.has(selectedRole) ? selectedRole : "patient";
 
-    const exists = dummyUsers.some(
-      (user) => user.username.toLowerCase() === normalizedUsername
-    );
-
-    if (exists) {
-      setSignupError("Username already exists.");
+    if (roleToStore === "doctor" && !signupForm.specialization.trim()) {
+      setSignupError("Please enter your specialization");
       return;
     }
 
-    const createdUser = {
-      fullname: signupForm.fullname.trim(),
+    const signupPayload = {
+      name: signupForm.name.trim(),
+      email: signupForm.email.trim(),
+      password: signupForm.password,
       phone: signupForm.phone.trim(),
-      role: roleToStore,
-      username: signupForm.username.trim(),
-      password: signupForm.password
+      role: roleToStore
     };
 
-    const updatedUsers = [...dummyUsers, createdUser];
-    setDummyUsers(updatedUsers);
-    saveDummyUsers(updatedUsers);
+    if (roleToStore === "doctor") {
+      signupPayload.specialization = signupForm.specialization.trim();
+    }
 
-    setSignupSuccess("Account created successfully! Redirecting to dashboard...");
+    console.log("Sending signup:", signupPayload);
+
+    const signupResult = await authApiRequest("/api/auth/signup", signupPayload);
+
+    if (!signupResult.ok) {
+      console.log("[Signup] Backend failure:", signupResult.status, signupResult.data);
+      setSignupError(signupResult.data?.message || "Signup failed. Please try again.");
+      return;
+    }
+
+    console.log("[Signup] Backend success:", signupResult.status, signupResult.data);
+
+    const token = signupResult.data?.token;
+    const backendUser = signupResult.data?.user || {};
+
+    if (token) {
+      localStorage.setItem(STORAGE_TOKEN_KEY, token);
+    }
+    localStorage.setItem(STORAGE_AUTH_USER_KEY, JSON.stringify(backendUser));
+
+    const roleFromBackend = String(backendUser.role || roleToStore || "patient").toLowerCase();
+    const displayName = backendUser.name || backendUser.email || signupForm.email.trim();
+
+    setSignupSuccess(signupResult.data?.message || "Account created successfully! Redirecting to dashboard...");
     setTimeout(() => {
       setShowSignup(false);
       setSignupForm({
-        fullname: "",
+        name: "",
         phone: "",
+        email: "",
         role: "patient",
+        specialization: "",
         username: "",
         password: "",
         confirmPassword: ""
       });
-      setForm({ username: "", password: "", remember: false });
-      setActiveRole(createdUser.role);
-      setActiveUsername(createdUser.username);
+      setForm({ email: "", password: "", remember: false });
+      setActiveRole(roleFromBackend);
+      setActiveUsername(displayName);
       setError("");
     }, 700);
   };
@@ -393,9 +365,11 @@ function App() {
   const handleBackToLoginFromSignup = () => {
     setShowSignup(false);
     setSignupForm({
-      fullname: "",
+      name: "",
       phone: "",
+      email: "",
       role: "patient",
+      specialization: "",
       username: "",
       password: "",
       confirmPassword: ""
@@ -437,13 +411,13 @@ function App() {
           <p className="subtitle">Join Medico to access healthcare services</p>
 
           <form onSubmit={handleSignupSubmit}>
-            <label htmlFor="fullname">Full Name</label>
+            <label htmlFor="name">Full Name</label>
             <input
-              id="fullname"
-              name="fullname"
+              id="name"
+              name="name"
               type="text"
               placeholder="Enter your full name"
-              value={signupForm.fullname}
+              value={signupForm.name}
               onChange={handleSignupChange}
             />
 
@@ -454,6 +428,16 @@ function App() {
               type="tel"
               placeholder="Enter your phone number"
               value={signupForm.phone}
+              onChange={handleSignupChange}
+            />
+
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="Enter your email"
+              value={signupForm.email}
               onChange={handleSignupChange}
             />
 
@@ -468,6 +452,20 @@ function App() {
               <option value="doctor">Doctor</option>
               <option value="pharmacist">Pharmacist</option>
             </select>
+
+            {signupForm.role === "doctor" && (
+              <>
+                <label htmlFor="specialization">Specialization</label>
+                <input
+                  id="specialization"
+                  name="specialization"
+                  type="text"
+                  placeholder="Enter your specialization (e.g., Cardiology, Neurology)"
+                  value={signupForm.specialization}
+                  onChange={handleSignupChange}
+                />
+              </>
+            )}
 
             <label htmlFor="username">Username</label>
             <input
@@ -707,13 +705,13 @@ function App() {
         <p className="subtitle">Login to access your dashboard</p>
 
         <form onSubmit={handleSubmit}>
-          <label htmlFor="username">Username</label>
+          <label htmlFor="email">Email</label>
           <input
-            id="username"
-            name="username"
-            type="text"
-            placeholder="Enter username"
-            value={form.username}
+            id="email"
+            name="email"
+            type="email"
+            placeholder="Enter email"
+            value={form.email}
             onChange={handleChange}
           />
 
@@ -754,6 +752,7 @@ function App() {
           </label>
 
           {error ? <p className="form-error">{error}</p> : null}
+          {loginSuccess ? <p className="form-success">{loginSuccess}</p> : null}
 
           <button className="primary-btn" type="submit">
             Login
@@ -765,34 +764,6 @@ function App() {
         </p>
 
         <hr />
-
-        <section className="demo-section">
-          <h2>Demo Role Logins</h2>
-          <div className="demo-grid">
-            {DEMO_USERS.map((entry) => (
-              <article className="demo-card" key={entry.username}>
-                <h3>{entry.role}</h3>
-                <p>User: {entry.username}</p>
-                <p>Pass: {entry.password}</p>
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={() => fillDemoCredentials(entry.username, entry.password)}
-                >
-                  Use this login
-                </button>
-              </article>
-            ))}
-          </div>
-          <button
-            type="button"
-            className="link-btn"
-            style={{ marginTop: "0.9rem", fontWeight: 700 }}
-            onClick={resetDemoAccounts}
-          >
-            Reset demo accounts
-          </button>
-        </section>
 
       </section>
     </div>

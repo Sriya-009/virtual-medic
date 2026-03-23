@@ -40,7 +40,8 @@ const MENU_GROUPS = [
     key: "user-management",
     label: "User Management",
     items: [
-      { key: "user-management", label: "Manage Users" }
+      { key: "user-management", label: "Manage Users" },
+      { key: "pending-approvals", label: "Pending Approvals" }
     ]
   },
   {
@@ -117,21 +118,9 @@ const ROLE_ACCESS = {
   Patient: ["View Appointments"]
 };
 
-const ISSUE_ROWS = [
-  { id: "TKT-1001", user: "John Smith", issue: "Unable to book appointment", status: "Open" },
-  { id: "TKT-1002", user: "Dr. Sarah", issue: "Prescription save failed", status: "In Progress" },
-  { id: "TKT-1003", user: "Emily Parker", issue: "Wrong medicine in history", status: "Resolved" }
-];
+const ISSUE_ROWS = [];
 
-const ALL_USERS = [
-  { name: "Dr. Sarah Johnson", email: "sarah.j@hospital.com", role: "Doctor", department: "Cardiology", status: "Active" },
-  { name: "Dr. Michael Chen", email: "michael.c@hospital.com", role: "Doctor", department: "Neurology", status: "Active" },
-  { name: "Emily Parker", email: "emily.p@hospital.com", role: "Pharmacist", department: "Pharmacy", status: "Active" },
-  { name: "John Smith", email: "john.s@hospital.com", role: "Patient", department: "N/A", status: "Active" },
-  { name: "Dr. Lisa Wong", email: "lisa.w@hospital.com", role: "Doctor", department: "Pediatrics", status: "Inactive" },
-  { name: "James Miller", email: "james.m@hospital.com", role: "Patient", department: "N/A", status: "Active" },
-  { name: "Admin User", email: "admin@hospital.com", role: "Admin", department: "Administration", status: "Active" }
-];
+const ALL_USERS = [];
 
 const STORAGE_KEYS = {
   roleAccess: "medico.admin.roleAccess"
@@ -146,6 +135,8 @@ function AdminModule({ currentUsername = "admin" }) {
   const [users, setUsers] = useState(ALL_USERS);
   const [editingUserEmail, setEditingUserEmail] = useState("");
   const [deleteUserEmail, setDeleteUserEmail] = useState("");
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [loadingPending, setLoadingPending] = useState(false);
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
@@ -154,9 +145,9 @@ function AdminModule({ currentUsername = "admin" }) {
     status: "Active"
   });
   const [adminProfile, setAdminProfile] = useState({
-    name: "Admin User",
-    email: "admin@hospital.com",
-    phone: "+1-555-100-1000",
+    name: currentUsername || "Admin",
+    email: "",
+    phone: "",
     department: "Administration"
   });
   const [passwordForm, setPasswordForm] = useState({ current: "", next: "", confirm: "" });
@@ -189,15 +180,19 @@ function AdminModule({ currentUsername = "admin" }) {
 
   const roles = useMemo(() => Object.keys(roleAccess), [roleAccess]);
 
-  const adminHomeCards = useMemo(
-    () => [
-      { key: "user-management", label: "Total Users", value: "1,234", detail: "+12% from last month" },
-      { key: "user-management", label: "Active Doctors", value: "156", detail: "+5% from last month" },
-      { key: "system-control", label: "Departments", value: "12", detail: "0% from last month" },
-      { key: "data-management", label: "Active Patients", value: "892", detail: "+18% from last month" }
-    ],
-    []
-  );
+  const adminHomeCards = useMemo(() => {
+    const totalUsers = users.length;
+    const activeDoctors = users.filter((entry) => entry.role === "Doctor" && entry.status === "Active").length;
+    const departments = new Set(users.map((entry) => entry.department).filter(Boolean)).size;
+    const activePatients = users.filter((entry) => entry.role === "Patient" && entry.status === "Active").length;
+
+    return [
+      { key: "user-management", label: "Total Users", value: totalUsers, detail: "Based on current records" },
+      { key: "user-management", label: "Active Doctors", value: activeDoctors, detail: "Based on current records" },
+      { key: "system-control", label: "Departments", value: departments, detail: "Based on current records" },
+      { key: "data-management", label: "Active Patients", value: activePatients, detail: "Based on current records" }
+    ];
+  }, [users]);
 
   const showNotice = (message) => {
     setUiNotice(message);
@@ -246,6 +241,91 @@ function AdminModule({ currentUsername = "admin" }) {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.roleAccess, JSON.stringify(roleAccess));
   }, [roleAccess]);
+
+  // Fetch pending requests when activeMenu changes to "pending-approvals"
+  useEffect(() => {
+    if (activeMenu === "pending-approvals") {
+      fetchPendingRequests();
+    }
+  }, [activeMenu]);
+
+  const fetchPendingRequests = async () => {
+    try {
+      setLoadingPending(true);
+      const token = localStorage.getItem("medico.jwt.token");
+      const response = await fetch("http://localhost:5000/api/admin/pending-requests", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setPendingRequests(data.data || []);
+      } else {
+        showNotice("Error fetching pending requests: " + (data.message || "Unknown error"));
+        setPendingRequests([]);
+      }
+    } catch (error) {
+      console.error("Error fetching pending requests:", error);
+      showNotice("Failed to fetch pending requests.");
+      setPendingRequests([]);
+    } finally {
+      setLoadingPending(false);
+    }
+  };
+
+  const handleApproveRequest = async (userId) => {
+    try {
+      const token = localStorage.getItem("medico.jwt.token");
+      const response = await fetch("http://localhost:5000/api/admin/approve-request", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ userId })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        showNotice("Request approved successfully!");
+        fetchPendingRequests();
+      } else {
+        showNotice("Error approving request: " + (data.message || "Unknown error"));
+      }
+    } catch (error) {
+      console.error("Error approving request:", error);
+      showNotice("Failed to approve request.");
+    }
+  };
+
+  const handleRejectRequest = async (userId) => {
+    try {
+      const token = localStorage.getItem("medico.jwt.token");
+      const response = await fetch("http://localhost:5000/api/admin/reject-request", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ userId, reason: "Rejected by admin" })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        showNotice("Request rejected!");
+        fetchPendingRequests();
+      } else {
+        showNotice("Error rejecting request: " + (data.message || "Unknown error"));
+      }
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      showNotice("Failed to reject request.");
+    }
+  };
 
   const userToEdit = users.find((user) => user.email === editingUserEmail);
   const userToDelete = users.find((user) => user.email === deleteUserEmail);
@@ -699,6 +779,69 @@ function AdminModule({ currentUsername = "admin" }) {
               </table>
             </div>
           </div>
+        </section>
+      );
+    }
+
+    if (activeMenu === "pending-approvals") {
+      return (
+        <section className="erp-panel">
+          <h3>Pending Approvals</h3>
+          <p>Review and approve/reject signup requests from doctors and pharmacists.</p>
+
+          {loadingPending ? (
+            <p>Loading pending requests...</p>
+          ) : pendingRequests.length > 0 ? (
+            <div className="table-wrap">
+              <table className="erp-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Specialization</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingRequests.map((request) => (
+                    <tr key={request.id}>
+                      <td>{request.name}</td>
+                      <td>{request.email}</td>
+                      <td className="badge">{request.role}</td>
+                      <td>{request.specialization || "N/A"}</td>
+                      <td>{request.phone || "N/A"}</td>
+                      <td>
+                        <span className="status-badge pending">{request.approval_status}</span>
+                      </td>
+                      <td>
+                        <div className="table-actions">
+                          <button 
+                            type="button" 
+                            className="erp-primary-btn" 
+                            onClick={() => handleApproveRequest(request.id)}
+                          >
+                            Accept
+                          </button>
+                          <button 
+                            type="button" 
+                            className="danger"
+                            onClick={() => handleRejectRequest(request.id)}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p>No pending approval requests at this time.</p>
+          )}
         </section>
       );
     }
